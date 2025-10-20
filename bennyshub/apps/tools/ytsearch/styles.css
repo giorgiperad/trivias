@@ -12,6 +12,8 @@ body {
     overflow: hidden;
     height: 100vh;
     user-select: none;
+    display: flex;
+    flex-direction: column;
 }
 
 #app {
@@ -23,12 +25,13 @@ body {
 
 #keyboard-container {
     flex: 1;
-    padding: 8px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-height: 0;
     overflow: hidden;
+    justify-content: flex-start;
 }
 
 .top-bar {
@@ -36,48 +39,52 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    min-height: 40px;
+    min-height: 48px;
+    padding: 8px 0;
 }
 
 .top-bar h1 {
-    font-size: 18px;
+    font-size: 20px;
     margin: 0;
 }
 
 .status {
     color: #9fb6c9;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .pill-container {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: 4px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    justify-content: flex-start;
 }
 
 .row-wrap {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: 4px;
+    padding: 6px;
     display: flex;
-    gap: 4px;
+    gap: 6px;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    min-height: 48px;
+    min-height: 52px;
+    align-items: stretch;
 }
 
 .row-wrap.focused {
     border: 3px solid #FFD64D;
     background: rgba(255, 214, 77, 0.10);
+    box-shadow: 0 0 15px rgba(255, 214, 77, 0.3);
 }
 
 .text-input {
@@ -85,7 +92,7 @@ body {
     background: #ADD8E6;
     border: 2px solid #000;
     border-radius: 6px;
-    padding: 8px;
+    padding: 10px;
     font-size: 24px;
     font-weight: 800;
     color: #000;
@@ -101,14 +108,14 @@ body {
 
 .scan-btn {
     flex: 1;
-    min-height: 40px;
+    min-height: 44px;
     border: 1px solid rgba(124, 203, 255, 0.35);
     background: linear-gradient(to bottom, #15354d, #0f2a41);
     color: #e9f5ff;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     border-radius: 8px;
-    padding: 6px;
+    padding: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -138,6 +145,8 @@ body {
 .scan-btn.focused {
     border: 3px solid #FFD64D;
     background: rgba(255, 214, 77, 0.10);
+    box-shadow: 0 0 15px rgba(255, 214, 77, 0.3);
+    transform: scale(1.02);
 }
 
 .scan-btn:empty {

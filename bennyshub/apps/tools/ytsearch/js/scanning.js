@@ -316,10 +316,15 @@ class ScanningManager {
         
         if (this.mode === 'ROWS' && !this.overlayOpen) {
             const currentRow = this.rows[this.currentRowIndex];
-            if (currentRow) {
+            if (currentRow && !currentRow.classList.contains('hidden')) {
                 currentRow.classList.add('focused');
+                // Force a repaint to ensure the highlight is visible
+                currentRow.offsetHeight;
             }
         }
+        
+        // Update status display
+        this.updateStatus();
         
         if (!this.suppressRowLabelOnce) {
             this.speakRowLabel();
@@ -333,18 +338,27 @@ class ScanningManager {
         this.clearKeyHighlights();
         
         const currentRow = this.rows[this.currentRowIndex];
-        const keys = Array.from(currentRow.querySelectorAll('.scan-btn, .text-input'));
+        if (!currentRow) return;
+        
+        const keys = Array.from(currentRow.querySelectorAll('.scan-btn:not([style*="display: none"]), .text-input'));
         const currentKey = keys[this.currentKeyIndex];
         
         if (currentKey) {
             currentKey.classList.add('focused');
+            // Force a repaint to ensure the highlight is visible
+            currentKey.offsetHeight;
         }
+        
+        // Update status display
+        this.updateStatus();
         
         this.speakKeyLabel();
     }
     
     clearRowHighlights() {
-        this.rows.forEach(row => row.classList.remove('focused'));
+        this.rows.forEach(row => {
+            row.classList.remove('focused');
+        });
     }
     
     clearKeyHighlights() {

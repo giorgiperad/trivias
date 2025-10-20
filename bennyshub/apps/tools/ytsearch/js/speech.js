@@ -10,22 +10,45 @@ class SpeechManager {
     
     async init() {
         // Wait for NarbeVoiceManager to be available
-        while (!window.NarbeVoiceManager) {
-            await new Promise(resolve => setTimeout(resolve, 10));
+        let attempts = 0;
+        while (!window.NarbeVoiceManager && attempts < 100) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            attempts++;
+        }
+        
+        if (!window.NarbeVoiceManager) {
+            console.error('NarbeVoiceManager not found after waiting');
+            return;
         }
         
         // Wait for voices to load
-        await window.NarbeVoiceManager.waitForVoices();
-        this.ready = true;
-        
-        console.log('SpeechManager compatibility layer initialized with shared voice manager');
+        try {
+            await window.NarbeVoiceManager.waitForVoices();
+            this.ready = true;
+            console.log('✅ SpeechManager compatibility layer initialized with shared voice manager');
+        } catch (error) {
+            console.error('Error initializing voice manager:', error);
+            this.ready = false;
+        }
     }
     
     speak(text) {
-        if (!this.ready || !text || text.trim() === '') return;
+        if (!text || text.trim() === '') return;
         
-        // Use the shared voice manager's speakProcessed method for better pronunciation
-        window.NarbeVoiceManager.speakProcessed(text.toString());
+        if (!this.ready) {
+            console.warn('SpeechManager not ready, attempting to speak anyway');
+        }
+        
+        try {
+            if (window.NarbeVoiceManager) {
+                // Use the shared voice manager's speakProcessed method for better pronunciation
+                window.NarbeVoiceManager.speakProcessed(text.toString());
+            } else {
+                console.error('NarbeVoiceManager not available for TTS');
+            }
+        } catch (error) {
+            console.error('Error in speak:', error);
+        }
     }
     
     queueSpeak(text) {
@@ -34,34 +57,50 @@ class SpeechManager {
     }
     
     stop() {
-        if (window.NarbeVoiceManager) {
-            window.NarbeVoiceManager.cancel();
+        try {
+            if (window.NarbeVoiceManager) {
+                window.NarbeVoiceManager.cancel();
+            }
+        } catch (error) {
+            console.error('Error stopping speech:', error);
         }
     }
     
     toggle() {
-        if (window.NarbeVoiceManager) {
-            return window.NarbeVoiceManager.toggleTTS();
+        try {
+            if (window.NarbeVoiceManager) {
+                return window.NarbeVoiceManager.toggleTTS();
+            }
+        } catch (error) {
+            console.error('Error toggling TTS:', error);
         }
         return true;
     }
     
     // Getter to check if TTS is enabled
     get enabled() {
-        if (window.NarbeVoiceManager) {
-            const settings = window.NarbeVoiceManager.getSettings();
-            return settings.ttsEnabled;
+        try {
+            if (window.NarbeVoiceManager) {
+                const settings = window.NarbeVoiceManager.getSettings();
+                return settings.ttsEnabled;
+            }
+        } catch (error) {
+            console.error('Error getting TTS enabled state:', error);
         }
         return true;
     }
     
     // Setter for enabled state
     set enabled(value) {
-        if (window.NarbeVoiceManager) {
-            const settings = window.NarbeVoiceManager.getSettings();
-            if (settings.ttsEnabled !== value) {
-                window.NarbeVoiceManager.toggleTTS();
+        try {
+            if (window.NarbeVoiceManager) {
+                const settings = window.NarbeVoiceManager.getSettings();
+                if (settings.ttsEnabled !== value) {
+                    window.NarbeVoiceManager.toggleTTS();
+                }
             }
+        } catch (error) {
+            console.error('Error setting TTS enabled state:', error);
         }
     }
 }
