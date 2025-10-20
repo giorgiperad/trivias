@@ -6,7 +6,7 @@ class SearchManager {
         this.shortsResults = [];
         this.currentShortsIndex = 0;
         
-        // Cloudflare Worker endpoint for shorts
+        // Updated Cloudflare Worker endpoint for shorts
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
         // Turnstile security
@@ -27,6 +27,8 @@ class SearchManager {
     }
     
     initTurnstile() {
+        console.log('🔒 Initializing Turnstile...');
+        
         // Global callback for Turnstile widget
         window.onTurnstileReady = (token) => {
             console.log('🔒 Turnstile token received');
@@ -38,11 +40,18 @@ class SearchManager {
         if (window.turnstile) {
             this.renderTurnstile();
         } else {
-            // Wait for Turnstile script to load
+            // Wait for Turnstile script to load with timeout
+            let attempts = 0;
             const checkTurnstile = setInterval(() => {
+                attempts++;
                 if (window.turnstile) {
                     clearInterval(checkTurnstile);
                     this.renderTurnstile();
+                } else if (attempts > 50) {
+                    // Timeout after 5 seconds
+                    clearInterval(checkTurnstile);
+                    console.warn('⚠️ Turnstile failed to load, continuing without security verification');
+                    this.turnstileReady = false;
                 }
             }, 100);
         }
@@ -53,7 +62,7 @@ class SearchManager {
             // Get a fresh token using invisible mode
             window.turnstile.ready(() => {
                 window.turnstile.render('#turnstile-widget', {
-                    sitekey: '0x4AAAAAAB7n5nabkWl0WOPa', // Updated with correct site key
+                    sitekey: '0x4AAAAAAB7n5nabkWl0WOPa',
                     callback: (token) => {
                         console.log('🔒 Turnstile verification complete');
                         this.turnstileToken = token;
@@ -62,12 +71,13 @@ class SearchManager {
                     'error-callback': () => {
                         console.error('❌ Turnstile verification failed');
                         this.turnstileReady = false;
-                        window.speechManager.speak('Security verification failed');
+                        // Don't block search, just continue without token
                     }
                 });
             });
         } catch (error) {
             console.error('❌ Turnstile initialization error:', error);
+            this.turnstileReady = false;
         }
     }
     
@@ -76,26 +86,37 @@ class SearchManager {
             return this.turnstileToken;
         }
         
-        // Try to get a fresh token
+        // Try to get a fresh token with timeout
         return new Promise((resolve, reject) => {
             if (!window.turnstile) {
-                reject(new Error('Turnstile not loaded'));
+                console.warn('Turnstile not loaded, proceeding without token');
+                resolve(null);
                 return;
             }
+            
+            const timeout = setTimeout(() => {
+                console.warn('Turnstile token request timed out, proceeding without token');
+                resolve(null);
+            }, 3000);
             
             try {
                 window.turnstile.execute('#turnstile-widget', {
                     callback: (token) => {
+                        clearTimeout(timeout);
                         this.turnstileToken = token;
                         this.turnstileReady = true;
                         resolve(token);
                     },
                     'error-callback': () => {
-                        reject(new Error('Turnstile verification failed'));
+                        clearTimeout(timeout);
+                        console.warn('Turnstile verification failed, proceeding without token');
+                        resolve(null);
                     }
                 });
             } catch (error) {
-                reject(error);
+                clearTimeout(timeout);
+                console.warn('Turnstile execute error, proceeding without token:', error);
+                resolve(null);
             }
         });
     }
@@ -108,15 +129,11 @@ class SearchManager {
 
         try {
             console.log(`🔍 Starting YouTube search for: "${query}"`);
-            this.showLoading('Verifying security');
-            
-            // Ensure we have a valid Turnstile token
-            const token = await this.ensureTurnstileToken();
-            if (!token) {
-                throw new Error('Security verification required');
-            }
-            
             this.showLoading('Searching videos');
+            
+            // Try to get Turnstile token (but don't fail if we can't)
+            const token = await this.ensureTurnstileToken();
+            
             const results = await this.searchCloudflareShorts(query, token);
             
             if (results.length > 0) {
@@ -124,7 +141,7 @@ class SearchManager {
                 this.shortsResults = results;
                 this.currentShortsIndex = 0;
                 this.hideLoading();
-                window.speechManager.speak(`Found videos`);
+                window.speechManager.speak(`Found ${results.length} videos`);
                 
                 return results;
             } else {
@@ -137,53 +154,59 @@ class SearchManager {
         } catch (error) {
             console.error('❌ Video search failed:', error);
             this.hideLoading();
-            
-            if (error.message.includes('Security') || error.message.includes('Turnstile')) {
-                window.speechManager.speak('Security verification failed. Please refresh the page.');
-            } else {
-                this.handleSearchError('videos', error);
-            }
+            this.handleSearchError('video search', error);
             return [];
         }
     }
 
-    // Cloudflare Worker Shorts Search with Turnstile protection
+    // Cloudflare Worker Shorts Search with improved error handling
     async searchCloudflareShorts(query, turnstileToken) {
         try {
-            console.log('📹 Searching shorts via protected Cloudflare Worker...');
+            console.log('📹 Searching videos via Cloudflare Worker...');
             
-            const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=100`;
-            console.log('🔗 Protected Worker request URL:', url);
+            const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
+            console.log('🔗 Worker request URL:', url);
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
             
+            const headers = {
+                'Accept': 'application/json',
+                'Origin': window.location.origin
+            };
+            
+            // Add Turnstile token if available
+            if (turnstileToken) {
+                headers['cf-turnstile-response'] = turnstileToken;
+                console.log('🔒 Including Turnstile token in request');
+            } else {
+                console.log('⚠️ No Turnstile token available, proceeding anyway');
+            }
+            
             const startTime = Date.now();
             const response = await fetch(url, {
                 method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'cf-turnstile-response': turnstileToken, // Send Turnstile token in header
-                    'Origin': window.location.origin // Explicit origin header
-                },
+                headers: headers,
                 signal: controller.signal
             });
             const endTime = Date.now();
             
             clearTimeout(timeoutId);
-            console.log('📊 Protected Worker response status:', response.status);
+            console.log('📊 Worker response status:', response.status);
             console.log('⏱️ Request took:', endTime - startTime, 'ms');
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Protected Worker API error:', response.status, errorText);
+                console.error('❌ Worker API error:', response.status, errorText);
                 
-                if (response.status === 401) {
-                    throw new Error('Security verification failed');
-                } else if (response.status === 403) {
-                    throw new Error('Access denied - origin not allowed');
+                if (response.status === 404) {
+                    throw new Error('Search service temporarily unavailable');
+                } else if (response.status === 401 || response.status === 403) {
+                    throw new Error('Access denied - please refresh the page');
+                } else if (response.status >= 500) {
+                    throw new Error('Search service error - please try again');
                 } else {
-                    throw new Error(`Protected Worker API error: ${response.status} ${response.statusText}`);
+                    throw new Error(`Search failed with error ${response.status}`);
                 }
             }
             
@@ -195,20 +218,20 @@ class SearchManager {
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error('❌ JSON parse error:', parseError);
-                throw new Error(`Failed to parse JSON response: ${parseError.message}`);
+                throw new Error('Invalid response from search service');
             }
             
-            console.log('📊 Raw items count from protected worker:', data?.items?.length || 0);
+            console.log('📊 Raw items count from worker:', data?.items?.length || 0);
             
             // Process results - store only videoId, rebuild everything else locally
             const results = [];
             if (data && data.items && Array.isArray(data.items)) {
-                console.log(`🔄 Processing ${data.items.length} items from protected worker...`);
+                console.log(`🔄 Processing ${data.items.length} items...`);
                 
                 data.items.forEach((item, index) => {
                     if (item && item.videoId) {
                         const processedItem = {
-                            videoId: item.videoId, // This is all we need - don't trust worker URLs
+                            videoId: item.videoId,
                             title: item.title || `Video ${index + 1}`,
                             author: item.channelTitle || 'YouTube',
                             thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
@@ -223,11 +246,14 @@ class SearchManager {
                 });
             }
             
-            console.log(`🎉 Successfully processed ${results.length} videos from protected endpoint`);
+            console.log(`🎉 Successfully processed ${results.length} videos`);
             return results;
             
         } catch (error) {
-            console.error('❌ Protected video search failed:', error);
+            if (error.name === 'AbortError') {
+                throw new Error('Search request timed out - please try again');
+            }
+            console.error('❌ Video search failed:', error);
             throw error;
         }
     }
