@@ -82,9 +82,19 @@ class SearchManager {
         }
         try {
             console.log('🔒 Requesting fresh Turnstile token...');
-            const token = await window.turnstile.execute();
+            
+            // Reset the widget first to clear any previous execution state
+            try {
+                window.turnstile.reset('#turnstile-widget');
+                console.log('🔄 Reset Turnstile widget before execute');
+            } catch (resetError) {
+                console.log('Reset not needed or failed:', resetError);
+            }
+            
+            // Execute with explicit widget selector
+            const token = await window.turnstile.execute('#turnstile-widget');
             this.htmlTurnstileToken = token; // store only for debugging/logs
-            console.log('🔒 Got fresh Turnstile token');
+            console.log('🔒 Got fresh Turnstile token:', token ? 'YES' : 'NO');
             return token;
         } catch (error) {
             console.warn('Turnstile token generation failed, proceeding without token:', error);
@@ -155,6 +165,10 @@ class SearchManager {
                 'Accept': 'application/json',
                 'Origin': window.location.origin
             };
+            
+            // Debug: Log the token value we received
+            console.log('🔍 Token parameter received in doRequest:', token ? 'YES' : 'NO');
+            
             if (token) {
                 console.log('🔒 Including Turnstile token in request');
                 headers['cf-turnstile-response'] = token;
@@ -170,7 +184,14 @@ class SearchManager {
             return response;
         };
 
+        // Debug: Log initial token value
+        console.log('🔍 Initial token:', initialToken ? 'YES' : 'NO');
+        
         let token = initialToken || await this.getTsToken();
+        
+        // Debug: Log final token value before first request
+        console.log('🔍 Token before first request:', token ? 'YES' : 'NO');
+        
         let response = await doRequest(token);
 
         // If token was rejected, clear, fetch a new one, and retry once
@@ -178,6 +199,10 @@ class SearchManager {
             console.warn('🔁 Token rejected, refreshing token and retrying once...');
             this.clearTurnstileToken();
             token = await this.getTsToken();
+            
+            // Debug: Log retry token value
+            console.log('🔍 Retry token:', token ? 'YES' : 'NO');
+            
             response = await doRequest(token);
         }
 
