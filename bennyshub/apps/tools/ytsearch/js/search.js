@@ -75,39 +75,31 @@ class SearchManager {
     // Remove the renderTurnstile method since we're using the HTML widget
     
     async getTsToken() {
-        // In development environment, skip Turnstile token generation
-        if (window.location.origin.includes('127.0.0.1') || window.location.origin.includes('localhost')) {
-            console.log('🔧 Development environment detected, skipping Turnstile token');
-            return null;
-        }
-        
-        // First try to use the token from HTML widget callback
-        if (this.htmlTurnstileToken) {
-            console.log('🔒 Using stored HTML Turnstile token');
-            return this.htmlTurnstileToken;
-        }
-        
-        // If no stored token and Turnstile is available, try to get a fresh one
+        // Always fetch a fresh token
         if (!this.turnstileReady || !window.turnstile) {
             console.warn('Turnstile not ready, proceeding without token');
             return null;
         }
-        
         try {
-            const widgetContainer = document.getElementById('turnstile-widget');
-            if (!widgetContainer) {
-                console.warn('Turnstile widget container not found');
-                return null;
-            }
-            
-            // Try to execute the existing widget
-            console.log('🔒 Attempting to execute HTML Turnstile widget...');
+            console.log('🔒 Requesting fresh Turnstile token...');
             const token = await window.turnstile.execute();
-            console.log('🔒 Got fresh Turnstile token from execute');
+            this.htmlTurnstileToken = token; // store only for debugging/logs
+            console.log('🔒 Got fresh Turnstile token');
             return token;
         } catch (error) {
             console.warn('Turnstile token generation failed, proceeding without token:', error);
             return null;
+        }
+    }
+
+    clearTurnstileToken() {
+        this.htmlTurnstileToken = null;
+        try {
+            if (window.turnstile && typeof window.turnstile.reset === 'function') {
+                window.turnstile.reset('#turnstile-widget'); // reset the widget so it can issue a new token
+            }
+        } catch (e) {
+            // no-op
         }
     }
 
@@ -149,112 +141,100 @@ class SearchManager {
         }
     }
 
-    // Cloudflare Worker Shorts Search with improved error handling
-    async searchCloudflareShorts(query, turnstileToken) {
-        try {
+    // Cloudflare Worker Shorts Search with token refresh and one retry
+    async searchCloudflareShorts(query, initialToken) {
+        const doRequest = async (token) => {
             console.log('📹 Searching videos via Cloudflare Worker...');
-            
             const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
             console.log('🔗 Worker request URL:', url);
-            
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
-            
+
             const headers = {
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Origin': window.location.origin
             };
-            
-            // Only add Origin header if not in development environment
-            if (!window.location.origin.includes('127.0.0.1') && !window.location.origin.includes('localhost')) {
-                headers['Origin'] = window.location.origin;
-            }
-            
-            // Add Turnstile token if available
-            if (turnstileToken) {
-                headers['cf-turnstile-response'] = turnstileToken;
+            if (token) {
                 console.log('🔒 Including Turnstile token in request');
+                headers['cf-turnstile-response'] = token;
             } else {
-                console.log('⚠️ No Turnstile token available, proceeding anyway');
+                console.warn('⚠️ No Turnstile token available, proceeding anyway');
             }
-            
+
             const startTime = Date.now();
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: headers,
-                signal: controller.signal,
-                mode: 'cors' // Explicitly request CORS
-            });
-            const endTime = Date.now();
-            
+            const response = await fetch(url, { method: 'GET', headers, signal: controller.signal });
             clearTimeout(timeoutId);
             console.log('📊 Worker response status:', response.status);
-            console.log('⏱️ Request took:', endTime - startTime, 'ms');
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Worker API error:', response.status, errorText);
-                
-                if (response.status === 404) {
-                    throw new Error('Search service temporarily unavailable');
-                } else if (response.status === 401 || response.status === 403) {
-                    throw new Error('Access denied - please refresh the page');
-                } else if (response.status >= 500) {
-                    throw new Error('Search service error - please try again');
-                } else {
-                    throw new Error(`Search failed with error ${response.status}`);
-                }
-            }
-            
-            const responseText = await response.text();
-            console.log('📄 Raw response length:', responseText.length, 'characters');
-            
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('❌ JSON parse error:', parseError);
-                throw new Error('Invalid response from search service');
-            }
-            
-            console.log('📊 Raw items count from worker:', data?.items?.length || 0);
-            
-            // Process results - store only videoId, rebuild everything else locally
-            const results = [];
-            if (data && data.items && Array.isArray(data.items)) {
-                console.log(`🔄 Processing ${data.items.length} items...`);
-                
-                data.items.forEach((item, index) => {
-                    if (item && item.videoId) {
-                        const processedItem = {
-                            videoId: item.videoId,
-                            title: item.title || `Video ${index + 1}`,
-                            author: item.channelTitle || 'YouTube',
-                            thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
-                            url: `https://www.youtube.com/watch?v=${item.videoId}`
-                        };
-                        
-                        results.push(processedItem);
-                        console.log(`✅ Added video ${index + 1}: ${processedItem.title} (${processedItem.videoId})`);
-                    } else {
-                        console.log(`❌ Skipped item ${index + 1}: missing videoId`);
-                    }
-                });
-            }
-            
-            console.log(`🎉 Successfully processed ${results.length} videos`);
-            return results;
-            
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                throw new Error('Search request timed out - please try again');
-            } else if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
-                // Handle CORS issues in development environment
-                console.error('❌ CORS/Network error - likely development environment issue');
-                throw new Error('Network error - try using the live site instead of development environment');
-            }
-            console.error('❌ Video search failed:', error);
-            throw error;
+            console.log('⏱️ Request took:', Date.now() - startTime, 'ms');
+            return response;
+        };
+
+        let token = initialToken || await this.getTsToken();
+        let response = await doRequest(token);
+
+        // If token was rejected, clear, fetch a new one, and retry once
+        if (response.status === 401 || response.status === 403) {
+            console.warn('🔁 Token rejected, refreshing token and retrying once...');
+            this.clearTurnstileToken();
+            token = await this.getTsToken();
+            response = await doRequest(token);
         }
+
+        // After the request cycle, clear the token so we never reuse it
+        this.clearTurnstileToken();
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            console.error('❌ Worker API error:', response.status, errorText);
+            if (response.status === 404) {
+                throw new Error('Search service temporarily unavailable');
+            } else if (response.status === 401 || response.status === 403) {
+                throw new Error('Access denied - please refresh the page');
+            } else if (response.status >= 500) {
+                throw new Error('Search service error - please try again');
+            } else {
+                throw new Error(`Search failed with error ${response.status}`);
+            }
+        }
+
+        const responseText = await response.text();
+        console.log('📄 Raw response length:', responseText.length, 'characters');
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ JSON parse error:', parseError);
+            throw new Error('Received invalid data from search service');
+        }
+
+        if (!data || !Array.isArray(data.items)) {
+            console.warn('⚠️ Unexpected data format from search service');
+            return [];
+        }
+
+        console.log('📊 Raw items count from worker:', data.items.length);
+        console.log('🔄 Processing', data.items.length, 'items...');
+
+        const results = [];
+        data.items.forEach((item, index) => {
+            if (item && item.videoId) {
+                results.push({
+                    videoId: item.videoId,
+                    title: item.title || `Video ${index + 1}`,
+                    author: item.channelTitle || 'YouTube',
+                    thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
+                    url: `https://www.youtube.com/watch?v=${item.videoId}`
+                });
+                console.log(`✅ Added video ${index + 1}: ${results[results.length - 1].title} (${item.videoId})`);
+            } else {
+                console.log(`❌ Skipped item ${index + 1} due to missing videoId`);
+            }
+        });
+
+        console.log('🎉 Successfully processed', results.length, 'videos');
+        return results;
     }
 
     // Load YouTube API once and cache it
@@ -313,7 +293,7 @@ class SearchManager {
                 videoId: videoId,
                 playerVars: {
                     autoplay: 1,
-                    mute: 1,                // Start muted for autoplay compliance
+                    mute: 1,                // Start muted for autoplay compliance, but will unmute after ready
                     playsinline: 1,
                     rel: 0,
                     modestbranding: 1,
@@ -341,10 +321,10 @@ class SearchManager {
                 }
             });
             
-            // Update our state
+            // Update our state - videos will start unmuted
             this.playerState = {
                 isPlaying: true,    // Will start playing when ready
-                isMuted: true,      // Starts muted
+                isMuted: false,     // Will be unmuted automatically after ready
                 currentVideoId: videoId
             };
             
@@ -357,18 +337,28 @@ class SearchManager {
     
     onPlayerReady(event) {
         try {
-            console.log('Player ready - starting muted playback');
+            console.log('Player ready - starting playback and auto-unmuting');
             const player = event.target;
             
-            // Start muted for autoplay compliance
+            // Start muted for autoplay compliance, then unmute after a brief delay
             player.mute();
             player.playVideo();
             
-            this.playerState.isMuted = true;
-            this.playerState.isPlaying = true;
-            
-            // Update button labels
-            this.updatePlayerButtons();
+            // Auto-unmute after player starts (gives time for autoplay to work)
+            setTimeout(() => {
+                try {
+                    player.unMute();
+                    player.setVolume(50); // Set reasonable volume
+                    console.log('🔊 Auto-unmuted video and set volume to 50%');
+                    this.playerState.isMuted = false;
+                    
+                    // Update button labels
+                    this.updatePlayerButtons();
+                } catch (error) {
+                    console.log('Could not auto-unmute video:', error);
+                    this.playerState.isMuted = true;
+                }
+            }, 1000); // Wait 1 second for autoplay to establish
             
             console.log('✅ Player initialized successfully');
             
