@@ -1,54 +1,74 @@
-// TTS functionality using unified voice manager (simplified approach like keyboard app)
+// TTS functionality using ONLY the unified voice manager - NO fallback TTS
 function speak(text) {
     if (!text || text.trim() === '') return;
     
     console.log('🔊 Speaking:', text);
     
-    // Use the unified voice manager's speakProcessed function for better pronunciation
-    if (window.NarbeVoiceManager && window.NarbeVoiceManager.speakProcessed) {
+    // Wait for NarbeVoiceManager if not immediately available
+    if (!window.NarbeVoiceManager) {
+        console.log('⏳ NarbeVoiceManager not ready, waiting...');
+        setTimeout(() => speak(text), 100);
+        return;
+    }
+    
+    // ONLY use the shared voice manager - no fallbacks allowed
+    if (window.NarbeVoiceManager.speakProcessed) {
         window.NarbeVoiceManager.speakProcessed(text);
-        console.log('✅ Used NarbeVoiceManager for TTS');
+        const currentVoice = window.NarbeVoiceManager.getCurrentVoice();
+        console.log('✅ Used NarbeVoiceManager with voice:', currentVoice?.name || 'default');
     } else {
-        console.warn('NarbeVoiceManager not available, using fallback');
-        // Fallback to direct speech synthesis only if shared manager is not available
-        speakFallback(text);
+        console.warn('❌ NarbeVoiceManager.speakProcessed not available - NO SPEECH');
     }
 }
 
-function speakFallback(text) {
-    try {
-        if (!('speechSynthesis' in window)) {
-            console.warn('❌ No speech synthesis support available');
-            return;
-        }
-        
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text.toString());
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Try to get a good voice
-        const voices = window.speechSynthesis.getVoices();
-        const englishVoice = voices.find(voice => 
-            voice.lang.startsWith('en-') && voice.name.includes('Google')
-        ) || voices.find(voice => voice.lang.startsWith('en-')) || voices[0];
-        
-        if (englishVoice) {
-            utterance.voice = englishVoice;
-        }
-        
-        window.speechSynthesis.speak(utterance);
-        console.log('✅ Used fallback TTS');
-    } catch (error) {
-        console.error('Fallback TTS error:', error);
-    }
-}
-
-// Simple speech manager that mimics the old interface but uses the shared voice manager directly
+// Simple speech manager that ONLY uses the shared voice manager
 class SpeechManager {
+    constructor() {
+        this.settingsChangeListener = null;
+        this.initialized = false;
+        this.initAttempts = 0;
+        this.maxInitAttempts = 50; // 5 seconds max wait
+        
+        // Initialize synchronization with retry logic
+        this.initializeVoiceSync();
+    }
+    
+    initializeVoiceSync() {
+        this.initAttempts++;
+        
+        if (window.NarbeVoiceManager && window.NarbeVoiceManager.onSettingsChange) {
+            console.log('🔄 Setting up voice synchronization...');
+            
+            // Register for settings changes
+            this.settingsChangeListener = (settings) => {
+                console.log('🔄 Voice settings changed in ytsearch app:', settings);
+                if (settings.voiceName) {
+                    console.log('📢 Voice changed to:', settings.voiceName);
+                }
+            };
+            
+            window.NarbeVoiceManager.onSettingsChange(this.settingsChangeListener);
+            this.initialized = true;
+            console.log('✅ Voice synchronization initialized');
+            
+            // Test TTS immediately after initialization
+            setTimeout(() => {
+                const currentVoice = window.NarbeVoiceManager.getCurrentVoice();
+                console.log('📢 Current voice at initialization:', currentVoice?.name || 'default');
+                this.speak('speech ready');
+            }, 100);
+            
+        } else if (this.initAttempts < this.maxInitAttempts) {
+            // Retry initialization if voice manager isn't ready yet
+            console.log(`⏳ Waiting for NarbeVoiceManager... (attempt ${this.initAttempts}/${this.maxInitAttempts})`);
+            setTimeout(() => {
+                this.initializeVoiceSync();
+            }, 100);
+        } else {
+            console.error('❌ Failed to initialize NarbeVoiceManager after maximum attempts');
+        }
+    }
+
     speak(text) {
         speak(text);
     }
@@ -59,12 +79,8 @@ class SpeechManager {
     
     stop() {
         try {
-            if (window.NarbeVoiceManager) {
+            if (window.NarbeVoiceManager && window.NarbeVoiceManager.cancel) {
                 window.NarbeVoiceManager.cancel();
-            }
-            // Also stop fallback
-            if (window.speechSynthesis) {
-                window.speechSynthesis.cancel();
             }
         } catch (error) {
             console.error('Error stopping speech:', error);
@@ -73,7 +89,7 @@ class SpeechManager {
     
     toggle() {
         try {
-            if (window.NarbeVoiceManager) {
+            if (window.NarbeVoiceManager && window.NarbeVoiceManager.toggleTTS) {
                 return window.NarbeVoiceManager.toggleTTS();
             }
         } catch (error) {
@@ -85,7 +101,7 @@ class SpeechManager {
     // Getter to check if TTS is enabled
     get enabled() {
         try {
-            if (window.NarbeVoiceManager) {
+            if (window.NarbeVoiceManager && window.NarbeVoiceManager.getSettings) {
                 const settings = window.NarbeVoiceManager.getSettings();
                 return settings.ttsEnabled;
             }
@@ -98,7 +114,7 @@ class SpeechManager {
     // Setter for enabled state
     set enabled(value) {
         try {
-            if (window.NarbeVoiceManager) {
+            if (window.NarbeVoiceManager && window.NarbeVoiceManager.getSettings && window.NarbeVoiceManager.toggleTTS) {
                 const settings = window.NarbeVoiceManager.getSettings();
                 if (settings.ttsEnabled !== value) {
                     window.NarbeVoiceManager.toggleTTS();
@@ -108,16 +124,16 @@ class SpeechManager {
             console.error('Error setting TTS enabled state:', error);
         }
     }
+    
+    // Cleanup method
+    destroy() {
+        if (this.settingsChangeListener && window.NarbeVoiceManager && window.NarbeVoiceManager.offSettingsChange) {
+            window.NarbeVoiceManager.offSettingsChange(this.settingsChangeListener);
+            console.log('🧹 Voice synchronization cleaned up');
+        }
+    }
 }
 
 // Global speech manager instance
 console.log('🎤 Creating global speechManager...');
 window.speechManager = new SpeechManager();
-
-// Test TTS on load - wait a moment for everything to initialize
-setTimeout(() => {
-    if (window.speechManager) {
-        console.log('🧪 Testing TTS...');
-        window.speechManager.speak('speech ready');
-    }
-}, 500);

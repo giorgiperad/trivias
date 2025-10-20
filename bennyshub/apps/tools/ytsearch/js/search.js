@@ -75,6 +75,12 @@ class SearchManager {
     // Remove the renderTurnstile method since we're using the HTML widget
     
     async getTsToken() {
+        // In development environment, skip Turnstile token generation
+        if (window.location.origin.includes('127.0.0.1') || window.location.origin.includes('localhost')) {
+            console.log('🔧 Development environment detected, skipping Turnstile token');
+            return null;
+        }
+        
         // First try to use the token from HTML widget callback
         if (this.htmlTurnstileToken) {
             console.log('🔒 Using stored HTML Turnstile token');
@@ -155,9 +161,13 @@ class SearchManager {
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
             
             const headers = {
-                'Accept': 'application/json',
-                'Origin': window.location.origin
+                'Accept': 'application/json'
             };
+            
+            // Only add Origin header if not in development environment
+            if (!window.location.origin.includes('127.0.0.1') && !window.location.origin.includes('localhost')) {
+                headers['Origin'] = window.location.origin;
+            }
             
             // Add Turnstile token if available
             if (turnstileToken) {
@@ -171,7 +181,8 @@ class SearchManager {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: headers,
-                signal: controller.signal
+                signal: controller.signal,
+                mode: 'cors' // Explicitly request CORS
             });
             const endTime = Date.now();
             
@@ -236,6 +247,10 @@ class SearchManager {
         } catch (error) {
             if (error.name === 'AbortError') {
                 throw new Error('Search request timed out - please try again');
+            } else if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                // Handle CORS issues in development environment
+                console.error('❌ CORS/Network error - likely development environment issue');
+                throw new Error('Network error - try using the live site instead of development environment');
             }
             console.error('❌ Video search failed:', error);
             throw error;
