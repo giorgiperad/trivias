@@ -103,7 +103,7 @@ class ScanningManager {
             }
         });
     }
-    
+
     handleKeyDown(e) {
         if (e.repeat) return;
         

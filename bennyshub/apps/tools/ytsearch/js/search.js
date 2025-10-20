@@ -204,11 +204,30 @@ class SearchManager {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
 
-            const headers = { 'Accept': 'application/json' };
+            const headers = { 
+                'Accept': 'application/json',
+                // Always send desktop-like headers to avoid mobile API restrictions
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site'
+            };
+            
             if (token) headers['cf-turnstile-response'] = token;
 
             const t0 = Date.now();
-            const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+            const res = await fetch(url, { 
+                method: 'GET', 
+                headers, 
+                signal: controller.signal,
+                credentials: 'omit',
+                mode: 'cors'
+            });
             clearTimeout(timeoutId);
             console.log('📊 Worker response status:', res.status);
             console.log('⏱️ Request took:', Date.now() - t0, 'ms');
@@ -241,7 +260,12 @@ class SearchManager {
         }
 
         const payload = await res.json().catch(() => null);
-        if (!payload || !Array.isArray(payload.items)) return [];
+        if (!payload || !Array.isArray(payload.items)) {
+            console.warn('⚠️ Unexpected response format:', payload);
+            return [];
+        }
+        
+        console.log('📊 Raw items count from worker:', payload.items.length);
         return payload.items.map((it, i) => ({
             videoId: it.videoId,
             title: it.title || `Video ${i + 1}`,

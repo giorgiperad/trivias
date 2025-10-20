@@ -51,13 +51,6 @@ class SpeechManager {
             this.initialized = true;
             console.log('✅ Voice synchronization initialized');
             
-            // Test TTS immediately after initialization
-            setTimeout(() => {
-                const currentVoice = window.NarbeVoiceManager.getCurrentVoice();
-                console.log('📢 Current voice at initialization:', currentVoice?.name || 'default');
-                this.speak('speech ready');
-            }, 100);
-            
         } else if (this.initAttempts < this.maxInitAttempts) {
             // Retry initialization if voice manager isn't ready yet
             console.log(`⏳ Waiting for NarbeVoiceManager... (attempt ${this.initAttempts}/${this.maxInitAttempts})`);
