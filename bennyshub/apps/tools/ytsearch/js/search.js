@@ -4,7 +4,7 @@ window.onTurnstileReady = function(token) {
     // Store the token for later use
     if (window.searchManager) {
         window.searchManager.htmlTurnstileToken = token || null;
-        window.searchManager.turnstileReady = true;     // <-- add this
+        window.searchManager.turnstileReady = true;
         console.log('✅ Turnstile token stored in searchManager');
     }
 };
@@ -22,7 +22,7 @@ class SearchManager {
         
         // Turnstile security with serialization
         this.turnstileReady = false;
-        this._token = null;
+        this.htmlTurnstileToken = null;
         this._execInFlight = null; // Promise when execute() is running
         
         // Autoplay state
@@ -72,88 +72,75 @@ class SearchManager {
             }, 100);
         }
     }
-    
-    // Remove the renderTurnstile method since we're using the HTML widget
 
-    resetTurnstileWidget() {
+    _setToken(token) {
+        this.htmlTurnstileToken = token || null;
+        this.turnstileReady = true;
+        console.log('🔒 Token set via callback:', token ? 'YES' : 'NO');
+    }
+
+    _clearToken() {
+        this.htmlTurnstileToken = null;
         try {
-            if (window.turnstile && typeof window.turnstile.reset === 'function') {
-                window.turnstile.reset('#turnstile-widget');
-            }
-        } catch (e) {}
+            if (window.turnstile) window.turnstile.reset('#turnstile-widget');
+        } catch (e) {
+            console.log('Error resetting widget:', e);
+        }
     }
 
     clearTurnstileToken() {
         this.htmlTurnstileToken = null;
-        this.resetTurnstileWidget();
-    }
-
-    _setToken(token) {
-        this._token = token || null;
-        this.turnstileReady = true;
-    }
-
-    _clearToken() {
-        this._token = null;
         try {
             if (window.turnstile) window.turnstile.reset('#turnstile-widget');
-        } catch {}
-    }
-
-    _getWidgetToken() {
-        try {
-            if (window.turnstile) {
-                const t = window.turnstile.getResponse('#turnstile-widget');
-                return t || null;
-            }
-        } catch {}
-        return null;
+        } catch (e) {
+            console.log('Error resetting widget:', e);
+        }
     }
 
     /**
-     * Always returns a fresh, single-use token.
-     * Serializes calls so execute() is never double-run.
+     * Mobile-safe token acquisition that works with callback-based flow
      */
     async getTsToken() {
-        // 1) If widget already has a valid token, use it
-        const existing = this._getWidgetToken();
-        if (existing) {
-            this._setToken(existing);
-            return existing;
+        // 1) If the HTML callback already stored a token, use it
+        if (this.htmlTurnstileToken) {
+            console.log('🔒 Using stored HTML Turnstile token');
+            const t = this.htmlTurnstileToken;
+            this.htmlTurnstileToken = null; // single-use
+            return t;
         }
 
-        // 2) If an execute() is already running, wait for it
-        if (this._execInFlight) {
-            try { await this._execInFlight; } catch {}
-            const after = this._getWidgetToken();
-            if (after) { this._setToken(after); return after; }
+        // 2) If Turnstile isn't ready, bail gracefully
+        if (!this.turnstileReady || !window.turnstile) {
+            console.warn('Turnstile not ready, proceeding without token');
             return null;
         }
 
-        // 3) Start a single execute() run and wait for the callback to set the token
-        if (!window.turnstile) return null;
-
-        this._execInFlight = (async () => {
-            try {
-                // Reset first to avoid "already executing"
-                try { window.turnstile.reset('#turnstile-widget'); } catch {}
-                console.log('🔒 Executing Turnstile...');
-                await window.turnstile.execute('#turnstile-widget');
-                // Token will arrive via onTurnstileToken callback
-            } finally {
-                this._execInFlight = null;
+        // 3) Ask the widget for its current token (mobile-safe)
+        try {
+            const t0 = window.turnstile.getResponse?.('#turnstile-widget');
+            if (t0) {
+                console.log('🔒 Read token via getResponse');
+                return t0;
             }
-        })();
+        } catch (e) {
+            console.log('Error reading token:', e);
+        }
 
-        // Wait a short time for the callback to fire
-        const deadline = Date.now() + 4000; // up to ~4s
-        while (Date.now() < deadline) {
-            const t = this._getWidgetToken();
-            if (t) {
-                this._setToken(t);
-                return t;
+        // 4) Execute the widget, then poll getResponse briefly
+        try {
+            console.log('🔒 Executing Turnstile widget...');
+            await window.turnstile.execute('#turnstile-widget'); // returns after solving
+            const deadline = Date.now() + 4000;
+            while (Date.now() < deadline) {
+                const t = window.turnstile.getResponse?.('#turnstile-widget');
+                if (t) {
+                    console.log('🔒 Got fresh token after execute');
+                    return t;
+                }
+                await new Promise(r => setTimeout(r, 50));
             }
-            await new Promise(r => setTimeout(r, 50));
+        } catch (e) {
+            console.warn('Turnstile execute failed:', e);
         }
         return null;
     }
@@ -194,7 +181,7 @@ class SearchManager {
         }
     }
 
-    // Cloudflare Worker Shorts Search with token refresh and one retry
+    // Cloudflare Worker Shorts Search with mobile-safe headers and token refresh
     async searchCloudflareShorts(query) {
         const doRequest = async (token) => {
             const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
@@ -243,13 +230,13 @@ class SearchManager {
         // If the Worker says no, fetch a brand-new token and retry once
         if (res.status === 401 || res.status === 403) {
             console.warn('🔁 Token rejected, refreshing and retrying...');
-            this._clearToken();
+            this.clearTurnstileToken();
             token = await this.getTsToken();
             res = await doRequest(token);
         }
 
         // After the cycle, clear so we never reuse single-use tokens
-        this._clearToken();
+        this.clearTurnstileToken();
 
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
