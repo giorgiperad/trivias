@@ -10,7 +10,7 @@ class SearchManager {
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
         // Turnstile security
-        this.turnstileToken = null;
+        this.turnstileWidgetId = null;
         this.turnstileReady = false;
         
         // Autoplay state
@@ -28,13 +28,6 @@ class SearchManager {
     
     initTurnstile() {
         console.log('🔒 Initializing Turnstile...');
-        
-        // Global callback for Turnstile widget
-        window.onTurnstileReady = (token) => {
-            console.log('🔒 Turnstile token received');
-            this.turnstileToken = token;
-            this.turnstileReady = true;
-        };
         
         // Check if Turnstile is already loaded
         if (window.turnstile) {
@@ -59,21 +52,28 @@ class SearchManager {
     
     renderTurnstile() {
         try {
-            // Get a fresh token using invisible mode
+            // Render invisible widget for programmatic execution
             window.turnstile.ready(() => {
-                window.turnstile.render('#turnstile-widget', {
+                this.turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
                     sitekey: '0x4AAAAAAB7n5nabkWl0WOPa',
+                    size: 'invisible',
                     callback: (token) => {
                         console.log('🔒 Turnstile verification complete');
-                        this.turnstileToken = token;
-                        this.turnstileReady = true;
+                        // Token will be handled by getTsToken method
                     },
                     'error-callback': () => {
                         console.error('❌ Turnstile verification failed');
                         this.turnstileReady = false;
-                        // Don't block search, just continue without token
                     }
                 });
+                
+                if (this.turnstileWidgetId) {
+                    this.turnstileReady = true;
+                    console.log('✅ Turnstile widget rendered with ID:', this.turnstileWidgetId);
+                } else {
+                    console.warn('⚠️ Failed to render Turnstile widget');
+                    this.turnstileReady = false;
+                }
             });
         } catch (error) {
             console.error('❌ Turnstile initialization error:', error);
@@ -81,44 +81,28 @@ class SearchManager {
         }
     }
     
-    async ensureTurnstileToken() {
-        if (this.turnstileToken && this.turnstileReady) {
-            return this.turnstileToken;
+    async getTsToken() {
+        if (!this.turnstileReady || !this.turnstileWidgetId || !window.turnstile) {
+            console.warn('Turnstile not ready, proceeding without token');
+            return null;
         }
         
-        // Try to get a fresh token with timeout
-        return new Promise((resolve, reject) => {
-            if (!window.turnstile) {
-                console.warn('Turnstile not loaded, proceeding without token');
-                resolve(null);
-                return;
-            }
-            
-            const timeout = setTimeout(() => {
-                console.warn('Turnstile token request timed out, proceeding without token');
-                resolve(null);
-            }, 3000);
-            
+        try {
+            // Reset if a previous execute is still running
             try {
-                window.turnstile.execute('#turnstile-widget', {
-                    callback: (token) => {
-                        clearTimeout(timeout);
-                        this.turnstileToken = token;
-                        this.turnstileReady = true;
-                        resolve(token);
-                    },
-                    'error-callback': () => {
-                        clearTimeout(timeout);
-                        console.warn('Turnstile verification failed, proceeding without token');
-                        resolve(null);
-                    }
-                });
-            } catch (error) {
-                clearTimeout(timeout);
-                console.warn('Turnstile execute error, proceeding without token:', error);
-                resolve(null);
+                window.turnstile.reset(this.turnstileWidgetId);
+            } catch (resetError) {
+                console.log('Turnstile reset not needed or failed:', resetError);
             }
-        });
+            
+            // Execute and get fresh token
+            const token = await window.turnstile.execute(this.turnstileWidgetId);
+            console.log('🔒 Got fresh Turnstile token');
+            return token;
+        } catch (error) {
+            console.warn('Turnstile token generation failed, proceeding without token:', error);
+            return null;
+        }
     }
 
     async searchShorts(query) {
@@ -131,8 +115,8 @@ class SearchManager {
             console.log(`🔍 Starting YouTube search for: "${query}"`);
             this.showLoading('Searching videos');
             
-            // Try to get Turnstile token (but don't fail if we can't)
-            const token = await this.ensureTurnstileToken();
+            // Get fresh Turnstile token using proper pattern
+            const token = await this.getTsToken();
             
             const results = await this.searchCloudflareShorts(query, token);
             
