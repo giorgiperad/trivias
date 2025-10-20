@@ -3,8 +3,8 @@ window.onTurnstileReady = function(token) {
     console.log('🔒 HTML Turnstile widget ready with token:', token ? 'YES' : 'NO');
     // Store the token for later use
     if (window.searchManager) {
-        window.searchManager.htmlTurnstileToken = token;
-        window.searchManager.turnstileReady = true;
+        window.searchManager.htmlTurnstileToken = token || null;
+        window.searchManager.turnstileReady = true;     // <-- add this
         console.log('✅ Turnstile token stored in searchManager');
     }
 };
@@ -20,9 +20,10 @@ class SearchManager {
         // Updated Cloudflare Worker endpoint for shorts
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
-        // Turnstile security - use HTML widget instead of programmatic
-        this.htmlTurnstileToken = null;
-        this.turnstileReady = false;
+        // Turnstile security with serialization
+        this.tsExecPromise = null;      // serialize execute()
+        this.turnstileReady = false;    // set true in onTurnstileReady
+        this.htmlTurnstileToken = null; // last token from callback or execute
         
         // Autoplay state
         this.autoplayEnabled = true;
@@ -73,43 +74,53 @@ class SearchManager {
     }
     
     // Remove the renderTurnstile method since we're using the HTML widget
-    
-    async getTsToken() {
-        // Always fetch a fresh token
-        if (!this.turnstileReady || !window.turnstile) {
-            console.warn('Turnstile not ready, proceeding without token');
-            return null;
-        }
+
+    resetTurnstileWidget() {
         try {
-            console.log('🔒 Requesting fresh Turnstile token...');
-            
-            // Reset the widget first to clear any previous execution state
-            try {
+            if (window.turnstile && typeof window.turnstile.reset === 'function') {
                 window.turnstile.reset('#turnstile-widget');
-                console.log('🔄 Reset Turnstile widget before execute');
-            } catch (resetError) {
-                console.log('Reset not needed or failed:', resetError);
             }
-            
-            // Execute with explicit widget selector
-            const token = await window.turnstile.execute('#turnstile-widget');
-            this.htmlTurnstileToken = token; // store only for debugging/logs
-            console.log('🔒 Got fresh Turnstile token:', token ? 'YES' : 'NO');
-            return token;
-        } catch (error) {
-            console.warn('Turnstile token generation failed, proceeding without token:', error);
-            return null;
-        }
+        } catch (e) {}
     }
 
     clearTurnstileToken() {
         this.htmlTurnstileToken = null;
+        this.resetTurnstileWidget();
+    }
+
+    /**
+     * Always returns a fresh, single-use token.
+     * Serializes calls so execute() is never double-run.
+     */
+    async getTsToken() {
+        if (!window.turnstile || !this.turnstileReady) {
+            console.warn('Turnstile not ready, proceeding without token');
+            return null;
+        }
+
+        // If a token request is already running, wait for it
+        if (this.tsExecPromise) {
+            try { return await this.tsExecPromise; } catch { /* fall through */ }
+        }
+
+        // Create a new serialized request
+        this.tsExecPromise = (async () => {
+            // Reset before execute to avoid "already executing"
+            this.resetTurnstileWidget();
+
+            console.log('🔒 Requesting fresh Turnstile token...');
+            const token = await window.turnstile.execute('#turnstile-widget');
+            console.log('🔒 Got fresh Turnstile token');
+            this.htmlTurnstileToken = token;
+            return token;
+        })();
+
         try {
-            if (window.turnstile && typeof window.turnstile.reset === 'function') {
-                window.turnstile.reset('#turnstile-widget'); // reset the widget so it can issue a new token
-            }
-        } catch (e) {
-            // no-op
+            const token = await this.tsExecPromise;
+            return token;
+        } finally {
+            // allow next caller to create a new one
+            this.tsExecPromise = null;
         }
     }
 
@@ -152,114 +163,69 @@ class SearchManager {
     }
 
     // Cloudflare Worker Shorts Search with token refresh and one retry
-    async searchCloudflareShorts(query, initialToken) {
+    async searchCloudflareShorts(query) {
         const doRequest = async (token) => {
-            console.log('📹 Searching videos via Cloudflare Worker...');
             const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
+            console.log('📹 Searching videos via Cloudflare Worker...');
             console.log('🔗 Worker request URL:', url);
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
 
-            const headers = {
-                'Accept': 'application/json',
-                'Origin': window.location.origin
-            };
-            
-            // Debug: Log the token value we received
-            console.log('🔍 Token parameter received in doRequest:', token ? 'YES' : 'NO');
-            
+            const headers = { 'Accept': 'application/json' };
             if (token) {
-                console.log('🔒 Including Turnstile token in request');
                 headers['cf-turnstile-response'] = token;
             } else {
                 console.warn('⚠️ No Turnstile token available, proceeding anyway');
             }
 
-            const startTime = Date.now();
-            const response = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+            const t0 = Date.now();
+            const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
             clearTimeout(timeoutId);
-            console.log('📊 Worker response status:', response.status);
-            console.log('⏱️ Request took:', Date.now() - startTime, 'ms');
-            return response;
+            console.log('📊 Worker response status:', res.status);
+            console.log('⏱️ Request took:', Date.now() - t0, 'ms');
+            return res;
         };
 
-        // Debug: Log initial token value
-        console.log('🔍 Initial token:', initialToken ? 'YES' : 'NO');
-        
-        let token = initialToken || await this.getTsToken();
-        
-        // Debug: Log final token value before first request
-        console.log('🔍 Token before first request:', token ? 'YES' : 'NO');
-        
-        let response = await doRequest(token);
+        // Always get a fresh token, then try once
+        let token = await this.getTsToken();
+        let res = await doRequest(token);
 
-        // If token was rejected, clear, fetch a new one, and retry once
-        if (response.status === 401 || response.status === 403) {
+        // If rejected, clear + fetch a brand new token and retry once
+        if (res.status === 401 || res.status === 403) {
             console.warn('🔁 Token rejected, refreshing token and retrying once...');
             this.clearTurnstileToken();
             token = await this.getTsToken();
-            
-            // Debug: Log retry token value
-            console.log('🔍 Retry token:', token ? 'YES' : 'NO');
-            
-            response = await doRequest(token);
+            res = await doRequest(token);
         }
 
-        // After the request cycle, clear the token so we never reuse it
+        // Never reuse tokens after a request cycle
         this.clearTurnstileToken();
 
-        if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            console.error('❌ Worker API error:', response.status, errorText);
-            if (response.status === 404) {
-                throw new Error('Search service temporarily unavailable');
-            } else if (response.status === 401 || response.status === 403) {
-                throw new Error('Access denied - please refresh the page');
-            } else if (response.status >= 500) {
-                throw new Error('Search service error - please try again');
-            } else {
-                throw new Error(`Search failed with error ${response.status}`);
-            }
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            console.error('❌ Worker API error:', res.status, text);
+            if (res.status === 401 || res.status === 403) throw new Error('Access denied - please refresh the page');
+            if (res.status >= 500) throw new Error('Search service error - please try again');
+            throw new Error(`Search failed with error ${res.status}`);
         }
 
-        const responseText = await response.text();
+        const responseText = await res.text();
         console.log('📄 Raw response length:', responseText.length, 'characters');
 
         let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('❌ JSON parse error:', parseError);
-            throw new Error('Received invalid data from search service');
-        }
+        try { data = JSON.parse(responseText); }
+        catch { throw new Error('Received invalid data from search service'); }
 
-        if (!data || !Array.isArray(data.items)) {
-            console.warn('⚠️ Unexpected data format from search service');
-            return [];
-        }
-
+        if (!data || !Array.isArray(data.items)) return [];
         console.log('📊 Raw items count from worker:', data.items.length);
-        console.log('🔄 Processing', data.items.length, 'items...');
-
-        const results = [];
-        data.items.forEach((item, index) => {
-            if (item && item.videoId) {
-                results.push({
-                    videoId: item.videoId,
-                    title: item.title || `Video ${index + 1}`,
-                    author: item.channelTitle || 'YouTube',
-                    thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
-                    url: `https://www.youtube.com/watch?v=${item.videoId}`
-                });
-                console.log(`✅ Added video ${index + 1}: ${results[results.length - 1].title} (${item.videoId})`);
-            } else {
-                console.log(`❌ Skipped item ${index + 1} due to missing videoId`);
-            }
-        });
-
-        console.log('🎉 Successfully processed', results.length, 'videos');
-        return results;
+        return data.items.map((it, i) => ({
+            videoId: it.videoId,
+            title: it.title || `Video ${i + 1}`,
+            author: it.channelTitle || 'YouTube',
+            thumbnail: `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`,
+            url: `https://www.youtube.com/watch?v=${it.videoId}`
+        }));
     }
 
     // Load YouTube API once and cache it
