@@ -25,13 +25,14 @@ body {
 
 #keyboard-container {
     flex: 1;
-    padding: 12px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-height: 0;
     overflow: hidden;
     justify-content: flex-start;
+    height: calc(100vh - 16px); /* Account for padding */
 }
 
 .top-bar {
@@ -39,8 +40,8 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    min-height: 48px;
-    padding: 8px 0;
+    min-height: 40px;
+    padding: 4px 0;
 }
 
 .top-bar h1 {
@@ -57,27 +58,31 @@ body {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: 8px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     justify-content: flex-start;
+    /* Calculate available height: 100vh - container padding - top bar - gap between elements */
+    height: calc(100vh - 16px - 48px - 6px);
 }
 
 .row-wrap {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: 6px;
+    padding: 4px;
     display: flex;
-    gap: 6px;
+    gap: 4px;
     transition: all 0.2s ease;
     flex-shrink: 0;
-    min-height: 52px;
+    /* Dynamic height based on available rows */
+    min-height: calc((100vh - 200px) / 12); /* Approximate calculation for 12 visible rows */
+    max-height: 60px;
     align-items: stretch;
 }
 
@@ -92,13 +97,13 @@ body {
     background: #ADD8E6;
     border: 2px solid #000;
     border-radius: 6px;
-    padding: 10px;
-    font-size: 24px;
+    padding: 8px;
+    font-size: clamp(18px, 3vh, 24px);
     font-weight: 800;
     color: #000;
     text-transform: uppercase;
     text-align: center;
-    min-height: 40px;
+    min-height: 36px;
     outline: none;
     flex: 1;
     display: flex;
@@ -108,14 +113,15 @@ body {
 
 .scan-btn {
     flex: 1;
-    min-height: 44px;
+    min-height: calc((100vh - 200px) / 12);
+    max-height: 56px;
     border: 1px solid rgba(124, 203, 255, 0.35);
     background: linear-gradient(to bottom, #15354d, #0f2a41);
     color: #e9f5ff;
-    font-size: 15px;
+    font-size: clamp(12px, 2vh, 15px);
     font-weight: 600;
     border-radius: 8px;
-    padding: 8px;
+    padding: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
