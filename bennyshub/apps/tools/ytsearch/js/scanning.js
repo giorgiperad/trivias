@@ -468,16 +468,41 @@ class ScanningManager {
         });
     }
     
-    // Speech methods - no TTS for history rows
+    // Speech methods - TTS history row contents when scanning
     speakRowLabel() {
         const currentRow = this.rows[this.currentRowIndex];
         const rowId = currentRow.dataset.rowId;
         
-        // Never speak for text row or history rows
-        if (rowId === 'row_text' || rowId.startsWith('row_history')) return;
+        // Never speak for text row
+        if (rowId === 'row_text') return;
         
+        // For history rows, speak the button contents instead of row labels
+        if (rowId.startsWith('row_history')) {
+            this.speakHistoryRowContents(currentRow);
+            return;
+        }
+        
+        // For other rows, speak the row label
         const label = this.rowLabels[rowId] || currentRow.dataset.label || 'row';
         window.speechManager.speak(label);
+    }
+    
+    speakHistoryRowContents(historyRow) {
+        // Get all buttons in the history row that have text content
+        const buttons = Array.from(historyRow.querySelectorAll('.scan-btn'));
+        const words = buttons
+            .map(btn => btn.textContent.trim())
+            .filter(text => text.length > 0 && text !== ''); // Only non-empty buttons
+        
+        if (words.length > 0) {
+            // Join the words with commas and speak them
+            const contentText = words.join(', ');
+            console.log(`Speaking history row contents: ${contentText}`);
+            window.speechManager.speak(contentText);
+        } else {
+            // If no words found, speak empty
+            window.speechManager.speak('empty');
+        }
     }
     
     speakKeyLabel() {

@@ -21,21 +21,22 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    max-width: 1400px; /* Prevent excessive expansion */
+    max-width: 1600px; /* Prevent excessive expansion on ultra-wide screens */
     margin: 0 auto;
     width: 100%;
 }
 
 #keyboard-container {
     flex: 1;
-    padding: clamp(6px, 1vw, 12px);
+    padding: clamp(4px, 0.5vh, 10px);
     display: flex;
     flex-direction: column;
-    gap: clamp(4px, 0.5vw, 8px);
+    gap: clamp(2px, 0.3vh, 6px);
     min-height: 0;
     overflow: hidden;
     justify-content: flex-start;
-    height: calc(100vh - clamp(12px, 2vw, 24px));
+    /* Fill remaining space after top bar */
+    height: calc(100vh - clamp(8px, 1vh, 20px));
 }
 
 .top-bar {
@@ -43,65 +44,85 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    min-height: clamp(32px, 4vh, 48px);
+    /* Dynamic height based on screen size */
+    height: clamp(36px, 5vh, 60px);
     padding: clamp(2px, 0.5vh, 6px) 0;
 }
 
 .top-bar h1 {
-    font-size: clamp(16px, 2.5vw, 24px);
+    font-size: clamp(16px, 2.5vw, 28px);
     margin: 0;
 }
 
 .status {
     color: #9fb6c9;
-    font-size: clamp(10px, 1.5vw, 14px);
+    font-size: clamp(10px, 1.5vw, 16px);
 }
 
 .pill-container {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: clamp(4px, 0.8vw, 8px);
+    padding: clamp(3px, 0.4vh, 8px);
     display: flex;
     flex-direction: column;
-    gap: clamp(3px, 0.5vw, 6px);
+    gap: clamp(2px, 0.3vh, 5px);
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    justify-content: flex-start;
-    /* Fixed height calculation that scales properly */
-    height: calc(100vh - clamp(60px, 8vh, 120px));
-    scroll-behavior: smooth;
-    /* Ensure content stays within bounds */
+    overflow: hidden; /* Remove scrolling, let content fill space */
+    justify-content: space-between; /* Distribute rows evenly */
+    /* Use remaining space after top bar and padding */
+    height: calc(100vh - clamp(44px, 6vh, 80px));
     position: relative;
-    contain: layout style;
 }
 
 .row-wrap {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 6px;
-    padding: clamp(3px, 0.5vw, 6px);
+    padding: clamp(2px, 0.3vh, 5px);
     display: flex;
-    gap: clamp(3px, 0.5vw, 6px);
+    gap: clamp(2px, 0.3vh, 5px);
     transition: all 0.3s ease;
     flex-shrink: 0;
-    /* Fixed height that scales proportionally with screen size */
-    height: clamp(40px, 7vh, 65px);
+    /* Dynamic height that fills available space evenly */
+    flex: 1;
+    min-height: clamp(32px, 5vh, 48px);
+    max-height: clamp(65px, 10vh, 85px);
     align-items: stretch;
     position: relative;
     scroll-margin: 20px;
-    /* Ensure consistent aspect ratio */
-    max-height: 8vh;
-    min-height: 40px;
+}
+
+/* Specific sizing for different row types */
+.row-wrap[data-row-id="row_text"] {
+    /* Text input gets slightly more space */
+    flex: 1.2;
+    min-height: clamp(38px, 6vh, 55px);
+}
+
+.row-wrap[data-row-id="row_modes"],
+.row-wrap[data-row-id="row_controls"] {
+    /* Control rows get standard space */
+    flex: 1;
+}
+
+.row-wrap[data-row-id*="row_history"] {
+    /* History rows get less space when visible */
+    flex: 0.8;
+    min-height: clamp(30px, 4.5vh, 42px);
+}
+
+.row-wrap[data-row-id="predRow"] {
+    /* Predictive row gets standard space */
+    flex: 1;
 }
 
 .row-wrap.focused {
-    border: clamp(2px, 0.3vw, 3px) solid #FFD64D !important;
+    border: clamp(2px, 0.3vh, 3px) solid #FFD64D !important;
     background: rgba(255, 214, 77, 0.15) !important;
-    box-shadow: 0 0 clamp(15px, 2vw, 25px) rgba(255, 214, 77, 0.4), 
-                inset 0 0 clamp(5px, 1vw, 12px) rgba(255, 214, 77, 0.1) !important;
+    box-shadow: 0 0 clamp(15px, 2vh, 25px) rgba(255, 214, 77, 0.4), 
+                inset 0 0 clamp(5px, 1vh, 12px) rgba(255, 214, 77, 0.1) !important;
     /* Remove scale transform that causes overflow */
     transform: none !important;
     z-index: 10 !important;
@@ -145,13 +166,13 @@ body {
     background: #ADD8E6;
     border: 2px solid #000;
     border-radius: 6px;
-    padding: clamp(6px, 1vw, 12px);
-    font-size: clamp(16px, 2.5vw, 22px);
+    padding: clamp(4px, 0.8vh, 12px);
+    font-size: clamp(14px, 2.2vh, 24px);
     font-weight: 800;
     color: #000;
     text-transform: uppercase;
     text-align: center;
-    /* Fixed height that matches row height */
+    /* Fill parent height exactly */
     height: 100%;
     outline: none;
     flex: 1;
@@ -172,10 +193,10 @@ body {
     border: 1px solid rgba(124, 203, 255, 0.35);
     background: linear-gradient(to bottom, #15354d, #0f2a41);
     color: #e9f5ff;
-    font-size: clamp(11px, 1.8vw, 16px);
+    font-size: clamp(9px, 1.4vh, 18px);
     font-weight: 600;
     border-radius: 6px;
-    padding: clamp(4px, 0.8vw, 8px);
+    padding: clamp(2px, 0.5vh, 8px);
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -206,9 +227,9 @@ body {
 }
 
 .scan-btn.focused {
-    border: clamp(2px, 0.3vw, 3px) solid #FFD64D !important;
+    border: clamp(2px, 0.3vh, 3px) solid #FFD64D !important;
     background: rgba(255, 214, 77, 0.15) !important;
-    box-shadow: 0 0 clamp(10px, 1.5vw, 20px) rgba(255, 214, 77, 0.4) !important;
+    box-shadow: 0 0 clamp(10px, 1.5vh, 20px) rgba(255, 214, 77, 0.4) !important;
     /* Reduce scale to prevent overflow */
     transform: scale(1.02) !important;
     z-index: 5 !important;
@@ -418,66 +439,66 @@ body {
 
 @media (max-width: 1200px) {
     .scan-btn {
-        font-size: clamp(10px, 2vw, 15px);
+        font-size: clamp(9px, 1.5vh, 16px);
     }
     
-    .row-wrap {
-        height: clamp(38px, 7vh, 58px);
+    .text-input {
+        font-size: clamp(14px, 2.2vh, 22px);
     }
 }
 
 @media (max-width: 768px) {
     #keyboard-container {
-        padding: clamp(4px, 1.5vw, 8px);
-        gap: clamp(2px, 0.8vw, 4px);
+        padding: clamp(3px, 0.8vh, 6px);
+        gap: clamp(2px, 0.4vh, 4px);
     }
     
     .pill-container {
-        padding: clamp(3px, 1vw, 6px);
-        gap: clamp(2px, 0.8vw, 4px);
+        padding: clamp(2px, 0.6vh, 4px);
+        gap: clamp(2px, 0.4vh, 4px);
     }
     
     .row-wrap {
-        padding: clamp(2px, 0.8vw, 4px);
-        gap: clamp(2px, 0.8vw, 4px);
-        height: clamp(35px, 8vh, 52px);
+        padding: clamp(2px, 0.4vh, 3px);
+        gap: clamp(2px, 0.4vh, 3px);
+        min-height: clamp(32px, 5.5vh, 48px);
     }
     
     .scan-btn {
-        font-size: clamp(9px, 2.2vw, 13px);
-        padding: clamp(2px, 1vw, 4px);
+        font-size: clamp(8px, 1.8vh, 14px);
+        padding: clamp(2px, 0.6vh, 4px);
     }
     
     .text-input {
-        font-size: clamp(14px, 3vw, 18px);
-        padding: clamp(4px, 1.5vw, 8px);
+        font-size: clamp(12px, 2.5vh, 20px);
+        padding: clamp(3px, 1vh, 6px);
     }
 }
 
 @media (max-width: 480px) {
     .top-bar h1 {
-        font-size: clamp(14px, 4vw, 18px);
+        font-size: clamp(14px, 4vh, 20px);
     }
     
     .status {
-        font-size: clamp(8px, 2.5vw, 12px);
+        font-size: clamp(8px, 2vh, 14px);
     }
     
     .youtube-logo {
-        font-size: clamp(10px, 3vw, 14px);
-        margin-right: clamp(2px, 1vw, 4px);
+        font-size: clamp(10px, 2.5vh, 16px);
+        margin-right: clamp(2px, 1vh, 4px);
     }
     
     .row-wrap {
-        height: clamp(32px, 9vh, 48px);
+        min-height: clamp(28px, 6vh, 42px);
     }
     
     .scan-btn {
-        font-size: clamp(8px, 2.8vw, 12px);
+        font-size: clamp(7px, 2vh, 12px);
     }
     
     .text-input {
-        font-size: clamp(12px, 4vw, 16px);
+        font-size: clamp(10px, 3vh, 18px);
     }
 }
 
@@ -485,8 +506,7 @@ body {
 @media (min-width: 2000px) {
     #app {
         max-width: 1800px;
-        transform: scale(1.1);
-        transform-origin: center top;
+        /* Remove scaling transform to maintain native sizing */
     }
 }
 
@@ -498,5 +518,74 @@ body {
     
     .row-wrap.focused {
         border-width: 2px;
+    }
+}
+
+/* Responsive Design - Enhanced for full viewport utilization */
+@media (min-height: 900px) {
+    /* Larger screens - optimize for full height usage */
+    .pill-container {
+        gap: clamp(3px, 0.4vh, 7px);
+    }
+    
+    .row-wrap {
+        min-height: clamp(45px, 6vh, 65px);
+        max-height: clamp(75px, 11vh, 95px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(11px, 1.6vh, 20px);
+    }
+    
+    .text-input {
+        font-size: clamp(16px, 2.5vh, 28px);
+    }
+}
+
+@media (min-height: 1080px) {
+    /* 1080p and higher - maximize space utilization */
+    .pill-container {
+        gap: clamp(4px, 0.5vh, 8px);
+    }
+    
+    .row-wrap {
+        min-height: clamp(50px, 7vh, 75px);
+        max-height: clamp(85px, 12vh, 105px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(12px, 1.8vh, 22px);
+        padding: clamp(4px, 0.8vh, 12px);
+    }
+    
+    .text-input {
+        font-size: clamp(18px, 2.8vh, 32px);
+        padding: clamp(6px, 1.2vh, 16px);
+    }
+    
+    .top-bar {
+        height: clamp(40px, 6vh, 70px);
+    }
+    
+    .top-bar h1 {
+        font-size: clamp(18px, 3vh, 32px);
+    }
+}
+
+@media (max-height: 600px) {
+    /* Smaller screens - compact layout */
+    .row-wrap {
+        min-height: clamp(28px, 4vh, 36px);
+        max-height: clamp(45px, 7vh, 55px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(8px, 1.2vh, 14px);
+        padding: clamp(2px, 0.4vh, 4px);
+    }
+    
+    .text-input {
+        font-size: clamp(12px, 1.8vh, 18px);
+        padding: clamp(3px, 0.6vh, 6px);
     }
 }
