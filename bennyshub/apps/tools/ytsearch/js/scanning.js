@@ -49,18 +49,46 @@ class ScanningManager {
     }
     
     getAllRows() {
-        // Get all rows - now including history rows for scanning
+        // Get all visible rows - exclude hidden ones from scanning
         const allRows = Array.from(document.querySelectorAll('.row-wrap'));
         
-        // Include all rows in the scanning cycle (including history rows)
-        this.rows = allRows;
+        // Only include visible rows in the scanning cycle
+        this.rows = allRows.filter(row => !row.classList.contains('hidden'));
         
         console.log('Scanning rows loaded:', this.rows.map(r => r.dataset.rowId));
+        console.log('Total visible rows:', this.rows.length);
+        
+        // Ensure we have rows to scan
+        if (this.rows.length === 0) {
+            console.warn('No visible rows found for scanning');
+            return;
+        }
+        
+        // Reset current index if it's out of bounds
+        if (this.currentRowIndex >= this.rows.length) {
+            this.currentRowIndex = 0;
+        }
     }
     
     init() {
-        this.setupEventListeners();
-        this.highlightRows();
+        // Wait for DOM to be fully ready
+        if (document.readyState !== 'complete') {
+            window.addEventListener('load', () => {
+                this.setupEventListeners();
+                // Delay initial highlight to ensure all elements are rendered
+                setTimeout(() => {
+                    this.getAllRows();
+                    this.highlightRows();
+                }, 100);
+            });
+        } else {
+            this.setupEventListeners();
+            // Delay initial highlight to ensure all elements are rendered
+            setTimeout(() => {
+                this.getAllRows();
+                this.highlightRows();
+            }, 100);
+        }
     }
     
     setupEventListeners() {
@@ -284,14 +312,26 @@ class ScanningManager {
         this.cooldownUntil = Date.now() + this.INPUT_COOLDOWN_MS;
     }
     
-    // Row scanning methods - now only scan non-history rows
+    // Row scanning methods - ensure bounds checking
     scanRowsNext() {
+        if (this.rows.length === 0) {
+            console.warn('No rows available for scanning');
+            return;
+        }
+        
         this.currentRowIndex = (this.currentRowIndex + 1) % this.rows.length;
+        console.log(`Scanning next: ${this.currentRowIndex + 1}/${this.rows.length} - ${this.rows[this.currentRowIndex]?.dataset?.rowId}`);
         this.highlightRows();
     }
     
     scanRowsPrev() {
+        if (this.rows.length === 0) {
+            console.warn('No rows available for scanning');
+            return;
+        }
+        
         this.currentRowIndex = (this.currentRowIndex - 1 + this.rows.length) % this.rows.length;
+        console.log(`Scanning prev: ${this.currentRowIndex + 1}/${this.rows.length} - ${this.rows[this.currentRowIndex]?.dataset?.rowId}`);
         this.highlightRows();
     }
     
@@ -347,17 +387,40 @@ class ScanningManager {
         }
     }
     
-    // Visual highlighting methods
+    // Visual highlighting methods with better bounds checking
     highlightRows() {
         this.clearKeyHighlights();
         this.clearRowHighlights();
         
-        if (this.mode === 'ROWS' && !this.overlayOpen) {
+        if (this.mode === 'ROWS' && !this.overlayOpen && this.rows.length > 0) {
+            // Ensure current index is valid
+            if (this.currentRowIndex < 0 || this.currentRowIndex >= this.rows.length) {
+                console.warn(`Invalid row index ${this.currentRowIndex}, resetting to 0`);
+                this.currentRowIndex = 0;
+            }
+            
             const currentRow = this.rows[this.currentRowIndex];
             if (currentRow && !currentRow.classList.contains('hidden')) {
                 currentRow.classList.add('focused');
+                
+                // Scroll the focused row into view for better visibility
+                currentRow.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center',
+                    inline: 'nearest'
+                });
+                
                 // Force a repaint to ensure the highlight is visible
                 currentRow.offsetHeight;
+                
+                console.log(`Highlighted row: ${currentRow.dataset.rowId} (${this.currentRowIndex + 1}/${this.rows.length})`);
+            } else {
+                console.warn('Current row is invalid or hidden, refreshing rows');
+                this.getAllRows();
+                if (this.rows.length > 0) {
+                    this.currentRowIndex = 0;
+                    this.highlightRows();
+                }
             }
         }
         
@@ -537,12 +600,30 @@ class ScanningManager {
     
     updateRows() {
         // Refresh the rows array to account for hidden/shown elements
-        // Now including all rows (including history rows)
-        this.rows = Array.from(document.querySelectorAll('.row-wrap:not(.hidden)'));
+        const previousRowsCount = this.rows.length;
+        const previousRowId = this.rows[this.currentRowIndex]?.dataset?.rowId;
+        
+        this.getAllRows();
+        
+        console.log(`Rows updated: ${previousRowsCount} -> ${this.rows.length}`);
+        
+        // Try to maintain current row position if possible
+        if (previousRowId) {
+            const newIndex = this.rows.findIndex(row => row.dataset.rowId === previousRowId);
+            if (newIndex !== -1) {
+                this.currentRowIndex = newIndex;
+                console.log(`Maintained row position: ${previousRowId} at index ${newIndex}`);
+            } else {
+                // Previous row no longer visible, reset to start
+                this.currentRowIndex = 0;
+                console.log(`Previous row ${previousRowId} no longer visible, reset to index 0`);
+            }
+        }
         
         // Ensure current row index is valid
         if (this.currentRowIndex >= this.rows.length) {
             this.currentRowIndex = Math.max(0, this.rows.length - 1);
+            console.log(`Row index out of bounds, reset to ${this.currentRowIndex}`);
         }
         
         // Re-highlight current row

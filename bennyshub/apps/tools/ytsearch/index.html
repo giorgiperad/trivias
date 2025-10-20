@@ -12,13 +12,37 @@
 <body>
     <div id="app">
         <!-- Invisible Turnstile widget for security -->
-        <div id="turnstile-widget" 
-             class="cf-turnstile" 
-             data-sitekey="0x4AAAAAAB7n5nabkWl0WOPa" 
-             data-callback="onTurnstileReady"
+        <div id="turnstile-widget"
+             class="cf-turnstile"
+             data-sitekey="0x4AAAAAAB7n5nabkWl0WOPa"
+             data-callback="onTurnstileToken"
+             data-expired-callback="onTurnstileExpired"
+             data-error-callback="onTurnstileError"
              data-refresh-expired="auto"
              data-size="invisible"
              style="display: none;"></div>
+
+        <script>
+        // These are global so the widget can call them.
+        window.onTurnstileToken = (token) => {
+            console.log('🔒 Widget issued token via callback');
+            if (window.searchManager && typeof window.searchManager._setToken === 'function') {
+                window.searchManager._setToken(token);
+            }
+        };
+        window.onTurnstileExpired = () => {
+            console.log('⌛ Token expired');
+            if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
+                window.searchManager._clearToken();
+            }
+        };
+        window.onTurnstileError = (err) => {
+            console.warn('⚠️ Turnstile error callback', err);
+            if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
+                window.searchManager._clearToken();
+            }
+        };
+        </script>
 
         <!-- Main Keyboard Interface -->
         <div id="keyboard-container">

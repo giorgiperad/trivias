@@ -69,6 +69,8 @@ body {
     justify-content: flex-start;
     /* Calculate available height: 100vh - container padding - top bar - gap between elements */
     height: calc(100vh - 16px - 48px - 6px);
+    /* Smooth scrolling for better scanning experience */
+    scroll-behavior: smooth;
 }
 
 .row-wrap {
@@ -78,18 +80,51 @@ body {
     padding: 4px;
     display: flex;
     gap: 4px;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
     flex-shrink: 0;
     /* Dynamic height based on available rows */
     min-height: calc((100vh - 200px) / 12); /* Approximate calculation for 12 visible rows */
     max-height: 60px;
     align-items: stretch;
+    /* Ensure proper positioning for scanning */
+    position: relative;
+    scroll-margin: 20px; /* Add margin when scrolling into view */
 }
 
 .row-wrap.focused {
-    border: 3px solid #FFD64D;
-    background: rgba(255, 214, 77, 0.10);
-    box-shadow: 0 0 15px rgba(255, 214, 77, 0.3);
+    border: 3px solid #FFD64D !important;
+    background: rgba(255, 214, 77, 0.15) !important;
+    box-shadow: 0 0 20px rgba(255, 214, 77, 0.4), inset 0 0 10px rgba(255, 214, 77, 0.1) !important;
+    transform: scale(1.02) !important;
+    z-index: 10 !important;
+    /* Ensure the focused row is always visible and prominent */
+    position: relative;
+}
+
+/* Ensure focused rows are never hidden by other elements */
+.row-wrap.focused::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid #FFD64D;
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: -1;
+    animation: focusPulse 2s ease-in-out infinite;
+}
+
+@keyframes focusPulse {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.7; 
+        transform: scale(1.01);
+    }
 }
 
 .text-input {
@@ -131,6 +166,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
 }
 
 .scan-btn:hover {
@@ -149,10 +185,13 @@ body {
 }
 
 .scan-btn.focused {
-    border: 3px solid #FFD64D;
-    background: rgba(255, 214, 77, 0.10);
-    box-shadow: 0 0 15px rgba(255, 214, 77, 0.3);
-    transform: scale(1.02);
+    border: 3px solid #FFD64D !important;
+    background: rgba(255, 214, 77, 0.15) !important;
+    box-shadow: 0 0 15px rgba(255, 214, 77, 0.4) !important;
+    transform: scale(1.05) !important;
+    z-index: 5 !important;
+    color: #fff !important;
+    font-weight: bold !important;
 }
 
 .scan-btn:empty {

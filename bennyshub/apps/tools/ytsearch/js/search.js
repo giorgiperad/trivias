@@ -21,9 +21,9 @@ class SearchManager {
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
         // Turnstile security with serialization
-        this.tsExecPromise = null;      // serialize execute()
-        this.turnstileReady = false;    // set true in onTurnstileReady
-        this.htmlTurnstileToken = null; // last token from callback or execute
+        this.turnstileReady = false;
+        this._token = null;
+        this._execInFlight = null; // Promise when execute() is running
         
         // Autoplay state
         this.autoplayEnabled = true;
@@ -88,40 +88,74 @@ class SearchManager {
         this.resetTurnstileWidget();
     }
 
+    _setToken(token) {
+        this._token = token || null;
+        this.turnstileReady = true;
+    }
+
+    _clearToken() {
+        this._token = null;
+        try {
+            if (window.turnstile) window.turnstile.reset('#turnstile-widget');
+        } catch {}
+    }
+
+    _getWidgetToken() {
+        try {
+            if (window.turnstile) {
+                const t = window.turnstile.getResponse('#turnstile-widget');
+                return t || null;
+            }
+        } catch {}
+        return null;
+    }
+
     /**
      * Always returns a fresh, single-use token.
      * Serializes calls so execute() is never double-run.
      */
     async getTsToken() {
-        if (!window.turnstile || !this.turnstileReady) {
-            console.warn('Turnstile not ready, proceeding without token');
+        // 1) If widget already has a valid token, use it
+        const existing = this._getWidgetToken();
+        if (existing) {
+            this._setToken(existing);
+            return existing;
+        }
+
+        // 2) If an execute() is already running, wait for it
+        if (this._execInFlight) {
+            try { await this._execInFlight; } catch {}
+            const after = this._getWidgetToken();
+            if (after) { this._setToken(after); return after; }
             return null;
         }
 
-        // If a token request is already running, wait for it
-        if (this.tsExecPromise) {
-            try { return await this.tsExecPromise; } catch { /* fall through */ }
-        }
+        // 3) Start a single execute() run and wait for the callback to set the token
+        if (!window.turnstile) return null;
 
-        // Create a new serialized request
-        this.tsExecPromise = (async () => {
-            // Reset before execute to avoid "already executing"
-            this.resetTurnstileWidget();
-
-            console.log('🔒 Requesting fresh Turnstile token...');
-            const token = await window.turnstile.execute('#turnstile-widget');
-            console.log('🔒 Got fresh Turnstile token');
-            this.htmlTurnstileToken = token;
-            return token;
+        this._execInFlight = (async () => {
+            try {
+                // Reset first to avoid "already executing"
+                try { window.turnstile.reset('#turnstile-widget'); } catch {}
+                console.log('🔒 Executing Turnstile...');
+                await window.turnstile.execute('#turnstile-widget');
+                // Token will arrive via onTurnstileToken callback
+            } finally {
+                this._execInFlight = null;
+            }
         })();
 
-        try {
-            const token = await this.tsExecPromise;
-            return token;
-        } finally {
-            // allow next caller to create a new one
-            this.tsExecPromise = null;
+        // Wait a short time for the callback to fire
+        const deadline = Date.now() + 4000; // up to ~4s
+        while (Date.now() < deadline) {
+            const t = this._getWidgetToken();
+            if (t) {
+                this._setToken(t);
+                return t;
+            }
+            await new Promise(r => setTimeout(r, 50));
         }
+        return null;
     }
 
     async searchShorts(query) {
@@ -134,10 +168,8 @@ class SearchManager {
             console.log(`🔍 Starting YouTube search for: "${query}"`);
             this.showLoading('Searching videos');
             
-            // Get fresh Turnstile token using proper pattern
-            const token = await this.getTsToken();
-            
-            const results = await this.searchCloudflareShorts(query, token);
+            // Use new token flow - no need to pass token
+            const results = await this.searchCloudflareShorts(query);
             
             if (results.length > 0) {
                 console.log(`✅ Found ${results.length} videos`);
@@ -173,11 +205,7 @@ class SearchManager {
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
 
             const headers = { 'Accept': 'application/json' };
-            if (token) {
-                headers['cf-turnstile-response'] = token;
-            } else {
-                console.warn('⚠️ No Turnstile token available, proceeding anyway');
-            }
+            if (token) headers['cf-turnstile-response'] = token;
 
             const t0 = Date.now();
             const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
@@ -187,39 +215,34 @@ class SearchManager {
             return res;
         };
 
-        // Always get a fresh token, then try once
+        // Always try to have a token
         let token = await this.getTsToken();
+        if (!token) console.warn('⚠️ No Turnstile token available yet');
+
         let res = await doRequest(token);
 
-        // If rejected, clear + fetch a brand new token and retry once
+        // If the Worker says no, fetch a brand-new token and retry once
         if (res.status === 401 || res.status === 403) {
-            console.warn('🔁 Token rejected, refreshing token and retrying once...');
-            this.clearTurnstileToken();
+            console.warn('🔁 Token rejected, refreshing and retrying...');
+            this._clearToken();
             token = await this.getTsToken();
             res = await doRequest(token);
         }
 
-        // Never reuse tokens after a request cycle
-        this.clearTurnstileToken();
+        // After the cycle, clear so we never reuse single-use tokens
+        this._clearToken();
 
         if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            console.error('❌ Worker API error:', res.status, text);
+            const txt = await res.text().catch(() => '');
+            console.error('❌ Worker API error:', res.status, txt);
             if (res.status === 401 || res.status === 403) throw new Error('Access denied - please refresh the page');
-            if (res.status >= 500) throw new Error('Search service error - please try again');
-            throw new Error(`Search failed with error ${res.status}`);
+            if (res.status >= 500) throw new Error('Search service error - try again');
+            throw new Error(`Search failed with ${res.status}`);
         }
 
-        const responseText = await res.text();
-        console.log('📄 Raw response length:', responseText.length, 'characters');
-
-        let data;
-        try { data = JSON.parse(responseText); }
-        catch { throw new Error('Received invalid data from search service'); }
-
-        if (!data || !Array.isArray(data.items)) return [];
-        console.log('📊 Raw items count from worker:', data.items.length);
-        return data.items.map((it, i) => ({
+        const payload = await res.json().catch(() => null);
+        if (!payload || !Array.isArray(payload.items)) return [];
+        return payload.items.map((it, i) => ({
             videoId: it.videoId,
             title: it.title || `Video ${i + 1}`,
             author: it.channelTitle || 'YouTube',
