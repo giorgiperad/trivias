@@ -13,6 +13,13 @@
       "description": "Editable phrase & media tiles with scanning and speak-out.",
       "path": "apps/tools/phraseboard/index.html",
       "genres": ["Communication", "Accessibility"]
+    },
+    {
+      "id": "websearch",
+      "title": "YouTube Search",
+      "description": "Search and watch YouTube videos with accessible scanning controls.",
+      "path": "apps/tools/websearch/index.html",
+      "genres": ["Entertainment", "Accessibility", "Media"]
     }
   ]
 }
