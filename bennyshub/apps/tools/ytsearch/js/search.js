@@ -53,7 +53,7 @@ class SearchManager {
             // Get a fresh token using invisible mode
             window.turnstile.ready(() => {
                 window.turnstile.render('#turnstile-widget', {
-                    sitekey: 'YOUR_SITE_KEY_HERE', // Replace with your actual site key
+                    sitekey: '0x4AAAAAAB7n5nabkWl0WOPa', // Updated with correct site key
                     callback: (token) => {
                         console.log('🔒 Turnstile verification complete');
                         this.turnstileToken = token;
