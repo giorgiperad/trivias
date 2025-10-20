@@ -1,7 +1,12 @@
 // Global callback for Turnstile widget (referenced in HTML)
 window.onTurnstileReady = function(token) {
-    console.log('🔒 Global Turnstile callback received token:', token ? 'YES' : 'NO');
-    // This will be called by the HTML widget, but we handle tokens in getTsToken()
+    console.log('🔒 HTML Turnstile widget ready with token:', token ? 'YES' : 'NO');
+    // Store the token for later use
+    if (window.searchManager) {
+        window.searchManager.htmlTurnstileToken = token;
+        window.searchManager.turnstileReady = true;
+        console.log('✅ Turnstile token stored in searchManager');
+    }
 };
 
 // YouTube Shorts search functionality
@@ -15,8 +20,8 @@ class SearchManager {
         // Updated Cloudflare Worker endpoint for shorts
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
-        // Turnstile security
-        this.turnstileWidgetId = null;
+        // Turnstile security - use HTML widget instead of programmatic
+        this.htmlTurnstileToken = null;
         this.turnstileReady = false;
         
         // Autoplay state
@@ -33,93 +38,66 @@ class SearchManager {
     }
     
     initTurnstile() {
-        console.log('🔒 Initializing Turnstile...');
+        console.log('🔒 Initializing Turnstile (using HTML widget)...');
         
-        // Check if Turnstile is already loaded
+        // Check if the HTML widget container exists
+        const widgetContainer = document.getElementById('turnstile-widget');
+        if (!widgetContainer) {
+            console.error('❌ Turnstile widget container not found in HTML');
+            this.turnstileReady = false;
+            return;
+        }
+        
+        console.log('✅ Found HTML Turnstile widget container');
+        
+        // Check if Turnstile script is loaded
         if (window.turnstile) {
-            this.renderTurnstile();
+            console.log('✅ Turnstile script already loaded');
+            this.turnstileReady = true;
         } else {
-            // Wait for Turnstile script to load with timeout
+            // Wait for Turnstile script to load
             let attempts = 0;
             const checkTurnstile = setInterval(() => {
                 attempts++;
                 if (window.turnstile) {
                     clearInterval(checkTurnstile);
-                    this.renderTurnstile();
+                    console.log('✅ Turnstile script loaded after waiting');
+                    this.turnstileReady = true;
                 } else if (attempts > 50) {
-                    // Timeout after 5 seconds
                     clearInterval(checkTurnstile);
-                    console.warn('⚠️ Turnstile failed to load, search will fail without token');
+                    console.warn('⚠️ Turnstile script failed to load');
                     this.turnstileReady = false;
                 }
             }, 100);
         }
     }
     
-    renderTurnstile() {
-        try {
-            console.log('🔒 Rendering Turnstile widget...');
-            
-            // Use the existing widget container from HTML
-            const widgetContainer = document.getElementById('turnstile-widget');
-            if (!widgetContainer) {
-                console.error('❌ Turnstile widget container not found in HTML');
-                this.turnstileReady = false;
-                return;
-            }
-            
-            console.log('✅ Found existing Turnstile widget container');
-            
-            // The widget is already configured in HTML, just wait for it to be ready
-            window.turnstile.ready(() => {
-                console.log('🔒 Turnstile ready, using existing widget...');
-                
-                // Get the widget ID - it should render automatically from HTML attributes
-                // We need to render it programmatically to get the widget ID for execute()
-                this.turnstileWidgetId = window.turnstile.render(widgetContainer, {
-                    sitekey: '0x4AAAAAAB7n5nabkWl0WOPa',
-                    size: 'invisible',
-                    callback: (token) => {
-                        console.log('🔒 Turnstile callback received token:', token ? 'YES' : 'NO');
-                        // Token will be handled by getTsToken method
-                    },
-                    'error-callback': (error) => {
-                        console.error('❌ Turnstile verification failed:', error);
-                        this.turnstileReady = false;
-                    }
-                });
-                
-                if (this.turnstileWidgetId) {
-                    this.turnstileReady = true;
-                    console.log('✅ Turnstile widget rendered successfully with ID:', this.turnstileWidgetId);
-                } else {
-                    console.warn('⚠️ Failed to render Turnstile widget');
-                    this.turnstileReady = false;
-                }
-            });
-        } catch (error) {
-            console.error('❌ Turnstile initialization error:', error);
-            this.turnstileReady = false;
-        }
-    }
+    // Remove the renderTurnstile method since we're using the HTML widget
     
     async getTsToken() {
-        if (!this.turnstileReady || !this.turnstileWidgetId || !window.turnstile) {
+        // First try to use the token from HTML widget callback
+        if (this.htmlTurnstileToken) {
+            console.log('🔒 Using stored HTML Turnstile token');
+            return this.htmlTurnstileToken;
+        }
+        
+        // If no stored token and Turnstile is available, try to get a fresh one
+        if (!this.turnstileReady || !window.turnstile) {
             console.warn('Turnstile not ready, proceeding without token');
             return null;
         }
         
         try {
-            // Reset if a previous execute is still running
-            try {
-                window.turnstile.reset(this.turnstileWidgetId);
-            } catch (resetError) {
-                console.log('Turnstile reset not needed or failed:', resetError);
+            const widgetContainer = document.getElementById('turnstile-widget');
+            if (!widgetContainer) {
+                console.warn('Turnstile widget container not found');
+                return null;
             }
             
-            // Execute and get fresh token
-            const token = await window.turnstile.execute(this.turnstileWidgetId);
-            console.log('🔒 Got fresh Turnstile token');
+            // Try to execute the existing widget
+            console.log('🔒 Attempting to execute HTML Turnstile widget...');
+            const token = await window.turnstile.execute();
+            console.log('🔒 Got fresh Turnstile token from execute');
             return token;
         } catch (error) {
             console.warn('Turnstile token generation failed, proceeding without token:', error);

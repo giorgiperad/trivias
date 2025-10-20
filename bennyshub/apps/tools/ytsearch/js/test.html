@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CF Worker + Turnstile Test</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    body { font: 16px/1.4 system-ui, Arial; max-width: 720px; margin: 2rem auto; }
+    img { max-width: 100%; border-radius: 6px; }
+    iframe { width: 100%; height: 315px; border: 0; margin: .5rem 0 1.25rem; }
+    .error { color: #c00; }
+    .ok { color: #090; }
+    .row { display: flex; gap: .5rem; }
+    input { flex: 1; padding: .5rem .6rem; }
+    button { padding: .55rem .9rem; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h2>🎬 Test: Cloudflare Worker YouTube Search</h2>
+
+  <div class="row">
+    <input id="q" placeholder="Search videos (e.g., cats)" />
+    <button id="go">Search</button>
+  </div>
+
+  <p class="muted">This calls your Worker with a Turnstile token.</p>
+
+  <div id="ts-container" style="margin:.75rem 0;"></div>
+  <div id="status" class="muted">Turnstile: waiting…</div>
+
+  <pre id="log" class="muted" style="white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:6px;"></pre>
+  <div id="results"></div>
+
+  <script>
+    const WORKER_URL = "https://dawn-star-cad3.narbehousellc.workers.dev/"; // ← your worker
+    const SITE_KEY   = "0x4AAAAAAB7n5nabkWl0WOPa";                        // ← your Turnstile site key
+
+    const $ = (sel) => document.querySelector(sel);
+    const log = (...args) => { console.log(...args); $("#log").textContent += args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ') + "\n"; };
+
+    let widgetId = null;
+    let latestToken = null;
+
+    // 1) Render Turnstile explicitly to get a widgetId + capture tokens via callback
+    window.onload = () => {
+      if (!window.turnstile) { $("#status").textContent = "Turnstile script not loaded."; return; }
+      turnstile.ready(() => {
+        widgetId = turnstile.render("#ts-container", {
+          sitekey: SITE_KEY,
+          action: "search",
+          callback: (token) => {
+            latestToken = token;
+            $("#status").textContent = "Turnstile: token ready.";
+            log("Turnstile callback token:", token.slice(0, 12) + "…");
+          },
+          'error-callback': () => {
+            $("#status").textContent = "Turnstile error (will retry on submit)";
+            log("Turnstile error-callback fired");
+          },
+          'timeout-callback': () => {
+            $("#status").textContent = "Turnstile timed out (will refresh)";
+            log("Turnstile timeout-callback fired");
+          }
+        });
+        $("#status").textContent = "Turnstile: widget rendered.";
+      });
+    };
+
+    // 2) Ensure we always have a fresh token before calling the Worker
+    async function getTurnstileToken() {
+      try {
+        if (!widgetId) throw new Error("Turnstile widget not ready");
+        // If we already have a token from callback and it's fresh enough, use it.
+        // (For a demo we’ll just always call execute to be safe.)
+        const token = await turnstile.execute(widgetId, { async: true });
+        latestToken = token;
+        $("#status").textContent = "Turnstile: token obtained.";
+        log("Turnstile execute() token:", token.slice(0, 12) + "…");
+        return token;
+      } catch (e) {
+        $("#status").textContent = "Failed to get Turnstile token.";
+        log("Turnstile token error:", e);
+        throw e;
+      }
+    }
+
+    // 3) Call Worker
+    async function search() {
+      $("#results").innerHTML = "";
+      $("#log").textContent = "";
+      $("#status").textContent = "Running…";
+
+      const q = $("#q").value.trim();
+      if (!q) { alert("Enter a search term"); return; }
+
+      let token;
+      try {
+        token = await getTurnstileToken();
+      } catch {
+        $("#status").textContent = "Turnstile token failed.";
+        return;
+      }
+
+      const url = `${WORKER_URL}?q=${encodeURIComponent(q)}&limit=10`; // your worker expects ?q and header token
+      log("Request URL:", url);
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: { "cf-turnstile-response": token }
+      });
+
+      log("HTTP", res.status, res.statusText);
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        $("#status").textContent = "Bad JSON from worker.";
+        log("JSON parse error:", e);
+        return;
+      }
+
+      // Show server messages prominently
+      if (data.error) {
+        $("#status").innerHTML = `<span class="error">Worker error: ${data.error}</span>`;
+        log("Worker error payload:", data);
+        return;
+      }
+
+      // Expect { items: [...] } from your YouTube scraping worker
+      const items = Array.isArray(data.items) ? data.items : [];
+      $("#status").innerHTML = `<span class="ok">OK — ${items.length} results</span>`;
+      log("Worker payload:", data);
+
+      if (!items.length) {
+        $("#results").textContent = "No results (check Worker logs / allowed origins / scraping).";
+        return;
+      }
+
+      for (const v of items) {
+        const card = document.createElement("div");
+        card.innerHTML = `
+          <h4>${v.title || "Untitled"}</h4>
+          <small>${v.channelTitle || ""}</small>
+          ${v.thumbnail ? `<img src="${v.thumbnail}" alt="">` : ""}
+          ${v.embedUrl ? `<iframe src="${v.embedUrl}" allow="autoplay; fullscreen" allowfullscreen></iframe>` : ""}
+          <hr/>
+        `;
+        $("#results").appendChild(card);
+      }
+    }
+
+    $("#go").addEventListener("click", search);
+    $("#q").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); search(); } });
+  </script>
+</body>
+</html>
