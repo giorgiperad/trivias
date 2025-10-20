@@ -73,6 +73,9 @@ body {
     /* Fixed height calculation that scales properly */
     height: calc(100vh - clamp(60px, 8vh, 120px));
     scroll-behavior: smooth;
+    /* Ensure content stays within bounds */
+    position: relative;
+    contain: layout style;
 }
 
 .row-wrap {
@@ -99,34 +102,41 @@ body {
     background: rgba(255, 214, 77, 0.15) !important;
     box-shadow: 0 0 clamp(15px, 2vw, 25px) rgba(255, 214, 77, 0.4), 
                 inset 0 0 clamp(5px, 1vw, 12px) rgba(255, 214, 77, 0.1) !important;
-    transform: scale(1.02) !important;
+    /* Remove scale transform that causes overflow */
+    transform: none !important;
     z-index: 10 !important;
     position: relative;
+    /* Add subtle visual emphasis without scaling */
+    filter: brightness(1.1);
 }
 
 /* Ensure focused rows are never hidden by other elements */
 .row-wrap.focused::before {
     content: '';
     position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
+    /* Adjust positioning to stay within bounds */
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
     border: 2px solid #FFD64D;
     border-radius: 8px;
     pointer-events: none;
     z-index: -1;
     animation: focusPulse 2s ease-in-out infinite;
+    /* Ensure it doesn't overflow container */
+    box-sizing: border-box;
 }
 
 @keyframes focusPulse {
     0%, 100% { 
         opacity: 1; 
-        transform: scale(1);
+        /* Remove transform that could cause overflow */
+        box-shadow: 0 0 5px rgba(255, 214, 77, 0.3);
     }
     50% { 
-        opacity: 0.7; 
-        transform: scale(1.01);
+        opacity: 0.8; 
+        box-shadow: 0 0 15px rgba(255, 214, 77, 0.6);
     }
 }
 
@@ -199,10 +209,13 @@ body {
     border: clamp(2px, 0.3vw, 3px) solid #FFD64D !important;
     background: rgba(255, 214, 77, 0.15) !important;
     box-shadow: 0 0 clamp(10px, 1.5vw, 20px) rgba(255, 214, 77, 0.4) !important;
-    transform: scale(1.05) !important;
+    /* Reduce scale to prevent overflow */
+    transform: scale(1.02) !important;
     z-index: 5 !important;
     color: #fff !important;
     font-weight: bold !important;
+    /* Ensure proper containment */
+    overflow: hidden;
 }
 
 .scan-btn:empty {
