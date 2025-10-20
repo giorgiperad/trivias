@@ -1,108 +1,60 @@
-// Speech compatibility layer for shared voice manager
-// This provides the same interface as the old SpeechManager but uses NarbeVoiceManager
-
-class SpeechManager {
-    constructor() {
-        // Wait for the shared voice manager to be available
-        this.ready = false;
-        this.fallbackReady = false;
-        this.init();
-    }
+// TTS functionality using unified voice manager (simplified approach like keyboard app)
+function speak(text) {
+    if (!text || text.trim() === '') return;
     
-    async init() {
-        console.log('🎤 Initializing SpeechManager...');
-        
-        // Initialize fallback speech synthesis immediately
-        this.initFallbackTTS();
-        
-        // Wait for NarbeVoiceManager to be available
-        let attempts = 0;
-        while (!window.NarbeVoiceManager && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
-        if (!window.NarbeVoiceManager) {
-            console.warn('NarbeVoiceManager not found, using fallback TTS');
-            this.ready = false;
+    console.log('🔊 Speaking:', text);
+    
+    // Use the unified voice manager's speakProcessed function for better pronunciation
+    if (window.NarbeVoiceManager && window.NarbeVoiceManager.speakProcessed) {
+        window.NarbeVoiceManager.speakProcessed(text);
+        console.log('✅ Used NarbeVoiceManager for TTS');
+    } else {
+        console.warn('NarbeVoiceManager not available, using fallback');
+        // Fallback to direct speech synthesis only if shared manager is not available
+        speakFallback(text);
+    }
+}
+
+function speakFallback(text) {
+    try {
+        if (!('speechSynthesis' in window)) {
+            console.warn('❌ No speech synthesis support available');
             return;
         }
         
-        // Wait for voices to load
-        try {
-            await window.NarbeVoiceManager.waitForVoices();
-            this.ready = true;
-            console.log('✅ SpeechManager initialized with shared voice manager');
-        } catch (error) {
-            console.error('Error initializing voice manager:', error);
-            this.ready = false;
+        // Cancel any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(text.toString());
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Try to get a good voice
+        const voices = window.speechSynthesis.getVoices();
+        const englishVoice = voices.find(voice => 
+            voice.lang.startsWith('en-') && voice.name.includes('Google')
+        ) || voices.find(voice => voice.lang.startsWith('en-')) || voices[0];
+        
+        if (englishVoice) {
+            utterance.voice = englishVoice;
         }
+        
+        window.speechSynthesis.speak(utterance);
+        console.log('✅ Used fallback TTS');
+    } catch (error) {
+        console.error('Fallback TTS error:', error);
     }
-    
-    initFallbackTTS() {
-        if ('speechSynthesis' in window) {
-            this.fallbackReady = true;
-            console.log('✅ Fallback TTS initialized');
-        } else {
-            console.warn('❌ No speech synthesis support available');
-        }
-    }
-    
+}
+
+// Simple speech manager that mimics the old interface but uses the shared voice manager directly
+class SpeechManager {
     speak(text) {
-        if (!text || text.trim() === '') return;
-        
-        console.log('🔊 Speaking:', text);
-        
-        try {
-            if (this.ready && window.NarbeVoiceManager) {
-                // Use the shared voice manager's speakProcessed method for better pronunciation
-                window.NarbeVoiceManager.speakProcessed(text.toString());
-                console.log('✅ Used NarbeVoiceManager for TTS');
-            } else if (this.fallbackReady) {
-                // Fallback to direct speech synthesis
-                this.speakFallback(text);
-                console.log('✅ Used fallback TTS');
-            } else {
-                console.error('❌ No TTS available');
-            }
-        } catch (error) {
-            console.error('Error in speak:', error);
-            // Try fallback if main method fails
-            if (this.fallbackReady) {
-                this.speakFallback(text);
-            }
-        }
-    }
-    
-    speakFallback(text) {
-        try {
-            // Cancel any ongoing speech
-            window.speechSynthesis.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(text.toString());
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
-            
-            // Try to get a good voice
-            const voices = window.speechSynthesis.getVoices();
-            const englishVoice = voices.find(voice => 
-                voice.lang.startsWith('en-') && voice.name.includes('Google')
-            ) || voices.find(voice => voice.lang.startsWith('en-')) || voices[0];
-            
-            if (englishVoice) {
-                utterance.voice = englishVoice;
-            }
-            
-            window.speechSynthesis.speak(utterance);
-        } catch (error) {
-            console.error('Fallback TTS error:', error);
-        }
+        speak(text);
     }
     
     queueSpeak(text) {
-        // The shared voice manager handles queuing internally
-        this.speak(text);
+        speak(text);
     }
     
     stop() {
@@ -111,7 +63,9 @@ class SpeechManager {
                 window.NarbeVoiceManager.cancel();
             }
             // Also stop fallback
-            window.speechSynthesis.cancel();
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
         } catch (error) {
             console.error('Error stopping speech:', error);
         }
@@ -156,14 +110,14 @@ class SpeechManager {
     }
 }
 
-// Global speech manager instance using the compatibility layer
+// Global speech manager instance
 console.log('🎤 Creating global speechManager...');
 window.speechManager = new SpeechManager();
 
-// Test TTS on load
+// Test TTS on load - wait a moment for everything to initialize
 setTimeout(() => {
     if (window.speechManager) {
         console.log('🧪 Testing TTS...');
         window.speechManager.speak('speech ready');
     }
-}, 1000);
+}, 500);

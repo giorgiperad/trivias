@@ -19,6 +19,7 @@ class ScanningManager {
         this.spaceAt = 0;
         this.spaceScanned = false;
         this.spaceTimer = null;
+        this.continuousTimer = null; // Added missing property
         
         this.enterDown = false;
         this.enterAt = 0;
@@ -28,18 +29,13 @@ class ScanningManager {
         this.cooldownUntil = 0;
         this.suppressRowLabelOnce = false;
         
-        // Get all rows
-        this.rows = Array.from(document.querySelectorAll('.row-wrap'));
+        // Get all rows - now including history rows for scanning
+        this.getAllRows();
+        
         this.rowLabels = {
             'row_text': 'text',
             'row_modes': 'search controls',
             'row_controls': 'controls',
-            'row_history_1': 'recent searches',
-            'row_history_2': 'more searches', 
-            'row_history_3': 'search history',
-            'row_history_4': 'older searches',
-            'row_history_5': 'previous searches',
-            'row_history_6': 'older searches',
             'row1': 'a b c d e f',
             'row2': 'g h i j k l',
             'row3': 'm n o p q r',
@@ -50,6 +46,16 @@ class ScanningManager {
         };
         
         this.init();
+    }
+    
+    getAllRows() {
+        // Get all rows - now including history rows for scanning
+        const allRows = Array.from(document.querySelectorAll('.row-wrap'));
+        
+        // Include all rows in the scanning cycle (including history rows)
+        this.rows = allRows;
+        
+        console.log('Scanning rows loaded:', this.rows.map(r => r.dataset.rowId));
     }
     
     init() {
@@ -158,18 +164,48 @@ class ScanningManager {
     
     startSpaceTimer() {
         this.stopSpaceTimer();
+        
+        // First backwards scan after 2.5 seconds
         this.spaceTimer = setTimeout(() => {
             this.spaceScanned = true;
             if (this.overlayOpen) {
                 this.overlayFocusPrev();
-                return;
-            }
-            if (this.mode === 'ROWS') {
+            } else if (this.mode === 'ROWS') {
                 this.scanRowsPrev();
             } else {
                 this.scanKeysPrev();
             }
+            
+            // Continue scanning backwards every 2 seconds while held
+            this.startContinuousBackScan();
         }, this.SCAN_BACK_MS);
+    }
+    
+    startContinuousBackScan() {
+        this.stopContinuousBackScan();
+        
+        // Continue scanning backwards every 2 seconds while space is held
+        this.continuousTimer = setInterval(() => {
+            if (!this.spaceDown) {
+                this.stopContinuousBackScan();
+                return;
+            }
+            
+            if (this.overlayOpen) {
+                this.overlayFocusPrev();
+            } else if (this.mode === 'ROWS') {
+                this.scanRowsPrev();
+            } else {
+                this.scanKeysPrev();
+            }
+        }, 2000); // Continue every 2 seconds
+    }
+    
+    stopContinuousBackScan() {
+        if (this.continuousTimer) {
+            clearInterval(this.continuousTimer);
+            this.continuousTimer = null;
+        }
     }
     
     stopSpaceTimer() {
@@ -177,6 +213,7 @@ class ScanningManager {
             clearTimeout(this.spaceTimer);
             this.spaceTimer = null;
         }
+        this.stopContinuousBackScan();
     }
     
     startEnterTimer() {
@@ -247,7 +284,7 @@ class ScanningManager {
         this.cooldownUntil = Date.now() + this.INPUT_COOLDOWN_MS;
     }
     
-    // Row scanning methods
+    // Row scanning methods - now only scan non-history rows
     scanRowsNext() {
         this.currentRowIndex = (this.currentRowIndex + 1) % this.rows.length;
         this.highlightRows();
@@ -274,7 +311,8 @@ class ScanningManager {
             return;
         }
         
-        // Enter key mode for other rows
+        // Allow entering history rows for selection
+        // Enter key mode for all rows (including history)
         this.clearRowHighlights();
         this.mode = 'KEYS';
         this.currentKeyIndex = 0;
@@ -367,12 +405,13 @@ class ScanningManager {
         });
     }
     
-    // Speech methods
+    // Speech methods - no TTS for history rows
     speakRowLabel() {
         const currentRow = this.rows[this.currentRowIndex];
         const rowId = currentRow.dataset.rowId;
         
-        if (rowId === 'row_text') return;
+        // Never speak for text row or history rows
+        if (rowId === 'row_text' || rowId.startsWith('row_history')) return;
         
         const label = this.rowLabels[rowId] || currentRow.dataset.label || 'row';
         window.speechManager.speak(label);
@@ -380,6 +419,11 @@ class ScanningManager {
     
     speakKeyLabel() {
         const currentRow = this.rows[this.currentRowIndex];
+        const rowId = currentRow.dataset.rowId;
+        
+        // Never speak for history row keys
+        if (rowId.startsWith('row_history')) return;
+        
         const keys = Array.from(currentRow.querySelectorAll('.scan-btn, .text-input'));
         const currentKey = keys[this.currentKeyIndex];
         
@@ -493,6 +537,7 @@ class ScanningManager {
     
     updateRows() {
         // Refresh the rows array to account for hidden/shown elements
+        // Now including all rows (including history rows)
         this.rows = Array.from(document.querySelectorAll('.row-wrap:not(.hidden)'));
         
         // Ensure current row index is valid

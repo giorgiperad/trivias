@@ -1,3 +1,9 @@
+// Global callback for Turnstile widget (referenced in HTML)
+window.onTurnstileReady = function(token) {
+    console.log('🔒 Global Turnstile callback received token:', token ? 'YES' : 'NO');
+    // This will be called by the HTML widget, but we handle tokens in getTsToken()
+};
+
 // YouTube Shorts search functionality
 class SearchManager {
     constructor() {
@@ -43,7 +49,7 @@ class SearchManager {
                 } else if (attempts > 50) {
                     // Timeout after 5 seconds
                     clearInterval(checkTurnstile);
-                    console.warn('⚠️ Turnstile failed to load, continuing without security verification');
+                    console.warn('⚠️ Turnstile failed to load, search will fail without token');
                     this.turnstileReady = false;
                 }
             }, 100);
@@ -52,24 +58,40 @@ class SearchManager {
     
     renderTurnstile() {
         try {
-            // Render invisible widget for programmatic execution
+            console.log('🔒 Rendering Turnstile widget...');
+            
+            // Use the existing widget container from HTML
+            const widgetContainer = document.getElementById('turnstile-widget');
+            if (!widgetContainer) {
+                console.error('❌ Turnstile widget container not found in HTML');
+                this.turnstileReady = false;
+                return;
+            }
+            
+            console.log('✅ Found existing Turnstile widget container');
+            
+            // The widget is already configured in HTML, just wait for it to be ready
             window.turnstile.ready(() => {
-                this.turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
+                console.log('🔒 Turnstile ready, using existing widget...');
+                
+                // Get the widget ID - it should render automatically from HTML attributes
+                // We need to render it programmatically to get the widget ID for execute()
+                this.turnstileWidgetId = window.turnstile.render(widgetContainer, {
                     sitekey: '0x4AAAAAAB7n5nabkWl0WOPa',
                     size: 'invisible',
                     callback: (token) => {
-                        console.log('🔒 Turnstile verification complete');
+                        console.log('🔒 Turnstile callback received token:', token ? 'YES' : 'NO');
                         // Token will be handled by getTsToken method
                     },
-                    'error-callback': () => {
-                        console.error('❌ Turnstile verification failed');
+                    'error-callback': (error) => {
+                        console.error('❌ Turnstile verification failed:', error);
                         this.turnstileReady = false;
                     }
                 });
                 
                 if (this.turnstileWidgetId) {
                     this.turnstileReady = true;
-                    console.log('✅ Turnstile widget rendered with ID:', this.turnstileWidgetId);
+                    console.log('✅ Turnstile widget rendered successfully with ID:', this.turnstileWidgetId);
                 } else {
                     console.warn('⚠️ Failed to render Turnstile widget');
                     this.turnstileReady = false;
