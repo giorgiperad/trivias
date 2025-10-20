@@ -21,18 +21,21 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    max-width: 1400px; /* Prevent excessive expansion */
+    margin: 0 auto;
+    width: 100%;
 }
 
 #keyboard-container {
     flex: 1;
-    padding: 8px;
+    padding: clamp(6px, 1vw, 12px);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: clamp(4px, 0.5vw, 8px);
     min-height: 0;
     overflow: hidden;
     justify-content: flex-start;
-    height: calc(100vh - 16px); /* Account for padding */
+    height: calc(100vh - clamp(12px, 2vw, 24px));
 }
 
 .top-bar {
@@ -40,64 +43,64 @@ body {
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
-    min-height: 40px;
-    padding: 4px 0;
+    min-height: clamp(32px, 4vh, 48px);
+    padding: clamp(2px, 0.5vh, 6px) 0;
 }
 
 .top-bar h1 {
-    font-size: 20px;
+    font-size: clamp(16px, 2.5vw, 24px);
     margin: 0;
 }
 
 .status {
     color: #9fb6c9;
-    font-size: 12px;
+    font-size: clamp(10px, 1.5vw, 14px);
 }
 
 .pill-container {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    padding: 6px;
+    padding: clamp(4px, 0.8vw, 8px);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: clamp(3px, 0.5vw, 6px);
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     justify-content: flex-start;
-    /* Calculate available height: 100vh - container padding - top bar - gap between elements */
-    height: calc(100vh - 16px - 48px - 6px);
-    /* Smooth scrolling for better scanning experience */
+    /* Fixed height calculation that scales properly */
+    height: calc(100vh - clamp(60px, 8vh, 120px));
     scroll-behavior: smooth;
 }
 
 .row-wrap {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 8px;
-    padding: 4px;
+    border-radius: 6px;
+    padding: clamp(3px, 0.5vw, 6px);
     display: flex;
-    gap: 4px;
+    gap: clamp(3px, 0.5vw, 6px);
     transition: all 0.3s ease;
     flex-shrink: 0;
-    /* Dynamic height based on available rows */
-    min-height: calc((100vh - 200px) / 12); /* Approximate calculation for 12 visible rows */
-    max-height: 60px;
+    /* Fixed height that scales proportionally with screen size */
+    height: clamp(40px, 7vh, 65px);
     align-items: stretch;
-    /* Ensure proper positioning for scanning */
     position: relative;
-    scroll-margin: 20px; /* Add margin when scrolling into view */
+    scroll-margin: 20px;
+    /* Ensure consistent aspect ratio */
+    max-height: 8vh;
+    min-height: 40px;
 }
 
 .row-wrap.focused {
-    border: 3px solid #FFD64D !important;
+    border: clamp(2px, 0.3vw, 3px) solid #FFD64D !important;
     background: rgba(255, 214, 77, 0.15) !important;
-    box-shadow: 0 0 20px rgba(255, 214, 77, 0.4), inset 0 0 10px rgba(255, 214, 77, 0.1) !important;
+    box-shadow: 0 0 clamp(15px, 2vw, 25px) rgba(255, 214, 77, 0.4), 
+                inset 0 0 clamp(5px, 1vw, 12px) rgba(255, 214, 77, 0.1) !important;
     transform: scale(1.02) !important;
     z-index: 10 !important;
-    /* Ensure the focused row is always visible and prominent */
     position: relative;
 }
 
@@ -110,7 +113,7 @@ body {
     right: -2px;
     bottom: -2px;
     border: 2px solid #FFD64D;
-    border-radius: 10px;
+    border-radius: 8px;
     pointer-events: none;
     z-index: -1;
     animation: focusPulse 2s ease-in-out infinite;
@@ -132,31 +135,37 @@ body {
     background: #ADD8E6;
     border: 2px solid #000;
     border-radius: 6px;
-    padding: 8px;
-    font-size: clamp(18px, 3vh, 24px);
+    padding: clamp(6px, 1vw, 12px);
+    font-size: clamp(16px, 2.5vw, 22px);
     font-weight: 800;
     color: #000;
     text-transform: uppercase;
     text-align: center;
-    min-height: 36px;
+    /* Fixed height that matches row height */
+    height: 100%;
     outline: none;
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Prevent text from breaking layout */
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .scan-btn {
+    /* Fixed proportional sizing */
     flex: 1;
-    min-height: calc((100vh - 200px) / 12);
-    max-height: 56px;
+    height: 100%; /* Match parent row height exactly */
+    max-height: none; /* Remove conflicting max-height */
+    min-height: auto; /* Remove conflicting min-height */
     border: 1px solid rgba(124, 203, 255, 0.35);
     background: linear-gradient(to bottom, #15354d, #0f2a41);
     color: #e9f5ff;
-    font-size: clamp(12px, 2vh, 15px);
+    font-size: clamp(11px, 1.8vw, 16px);
     font-weight: 600;
-    border-radius: 8px;
-    padding: 6px;
+    border-radius: 6px;
+    padding: clamp(4px, 0.8vw, 8px);
     cursor: pointer;
     transition: all 0.2s ease;
     outline: none;
@@ -167,6 +176,8 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     position: relative;
+    /* Maintain aspect ratio */
+    aspect-ratio: auto;
 }
 
 .scan-btn:hover {
@@ -185,9 +196,9 @@ body {
 }
 
 .scan-btn.focused {
-    border: 3px solid #FFD64D !important;
+    border: clamp(2px, 0.3vw, 3px) solid #FFD64D !important;
     background: rgba(255, 214, 77, 0.15) !important;
-    box-shadow: 0 0 15px rgba(255, 214, 77, 0.4) !important;
+    box-shadow: 0 0 clamp(10px, 1.5vw, 20px) rgba(255, 214, 77, 0.4) !important;
     transform: scale(1.05) !important;
     z-index: 5 !important;
     color: #fff !important;
@@ -217,23 +228,23 @@ body {
     background: #0f1521;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 14px;
-    padding: 24px;
+    padding: clamp(20px, 3vw, 32px);
     text-align: center;
-    min-width: 300px;
+    min-width: clamp(250px, 30vw, 400px);
 }
 
 .loading-label {
     color: #e9eef5;
     font-weight: 800;
-    font-size: 20px;
-    margin-bottom: 12px;
+    font-size: clamp(16px, 2.5vw, 24px);
+    margin-bottom: clamp(8px, 1.5vw, 16px);
 }
 
 .loading-bar {
     background: #0b111d;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 10px;
-    height: 14px;
+    height: clamp(10px, 1.5vh, 18px);
     overflow: hidden;
 }
 
@@ -262,16 +273,16 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    padding: 12px;
+    padding: clamp(8px, 1.5vw, 16px);
 }
 
 .slideshow-container {
     background: rgba(0, 0, 0, 0.94);
     border-radius: 14px;
-    padding: 8px;
+    padding: clamp(6px, 1vw, 12px);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: clamp(6px, 1vw, 12px);
     max-width: 95vw;
     max-height: 95vh;
     width: 100%;
@@ -304,17 +315,22 @@ body {
 
 .slideshow-controls {
     display: flex;
-    gap: 4px;
-    padding: 4px;
+    gap: clamp(3px, 0.5vw, 6px);
+    padding: clamp(3px, 0.5vw, 6px);
     flex-shrink: 0;
+    /* Fixed height for slideshow controls */
+    height: clamp(45px, 8vh, 65px);
 }
 
 .slideshow-controls .scan-btn {
     flex: 1;
-    font-size: 12px;
-    min-height: 36px;
+    font-size: clamp(10px, 1.5vw, 14px);
+    /* Match the container height exactly */
+    height: 100%;
+    min-height: auto;
+    max-height: none;
 }
-     
+
 /* YouTube Button Enhancements */
 .youtube-btn {
     border: 2px solid #ff0000 !important;
@@ -340,8 +356,8 @@ body {
 
 .youtube-logo {
     display: inline-block;
-    font-size: 16px;
-    margin-right: 6px;
+    font-size: clamp(12px, 2vw, 18px);
+    margin-right: clamp(4px, 0.8vw, 8px);
     background: linear-gradient(45deg, #ffffff, #f0f0f0);
     -webkit-background-clip: text;
     background-clip: text;
@@ -371,97 +387,103 @@ body {
     display: none !important;
 }
 
-/* Responsive Design */
-@media (max-height: 600px) {
-    #keyboard-container {
-        padding: 4px;
-        gap: 3px;
-    }
-    
-    .top-bar {
-        min-height: 30px;
-    }
-    
-    .top-bar h1 {
-        font-size: 16px;
-    }
-    
-    .status {
-        font-size: 10px;
-    }
-    
-    .text-input {
-        font-size: 20px;
-        padding: 6px;
-        min-height: 32px;
-    }
-    
-    .scan-btn {
-        font-size: 12px;
-        min-height: 32px;
-        padding: 4px;
+/* Responsive Design - Enhanced for proportional scaling */
+@media (min-width: 1800px) {
+    /* Extra large screens - prevent over-expansion */
+    #app {
+        max-width: 1600px;
     }
     
     .row-wrap {
-        min-height: 36px;
-        padding: 3px;
-        gap: 3px;
+        height: clamp(50px, 6vh, 70px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(13px, 1.2vw, 18px);
+    }
+}
+
+@media (max-width: 1200px) {
+    .scan-btn {
+        font-size: clamp(10px, 2vw, 15px);
+    }
+    
+    .row-wrap {
+        height: clamp(38px, 7vh, 58px);
     }
 }
 
 @media (max-width: 768px) {
-    .text-input {
-        font-size: 20px;
-        padding: 6px;
-        min-height: 36px;
-    }
-    
-    .scan-btn {
-        font-size: 12px;
-        min-height: 36px;
-        padding: 4px;
-    }
-    
     #keyboard-container {
-        padding: 6px;
-        gap: 4px;
+        padding: clamp(4px, 1.5vw, 8px);
+        gap: clamp(2px, 0.8vw, 4px);
     }
     
     .pill-container {
-        padding: 3px;
-        gap: 3px;
+        padding: clamp(3px, 1vw, 6px);
+        gap: clamp(2px, 0.8vw, 4px);
     }
     
     .row-wrap {
-        padding: 3px;
-        gap: 3px;
-        min-height: 40px;
+        padding: clamp(2px, 0.8vw, 4px);
+        gap: clamp(2px, 0.8vw, 4px);
+        height: clamp(35px, 8vh, 52px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(9px, 2.2vw, 13px);
+        padding: clamp(2px, 1vw, 4px);
+    }
+    
+    .text-input {
+        font-size: clamp(14px, 3vw, 18px);
+        padding: clamp(4px, 1.5vw, 8px);
     }
 }
 
 @media (max-width: 480px) {
-    .text-input {
-        font-size: 18px;
-        padding: 4px;
-        min-height: 32px;
-    }
-    
-    .scan-btn {
-        font-size: 11px;
-        min-height: 32px;
-        padding: 3px;
-    }
-    
     .top-bar h1 {
-        font-size: 14px;
+        font-size: clamp(14px, 4vw, 18px);
     }
     
     .status {
-        font-size: 9px;
+        font-size: clamp(8px, 2.5vw, 12px);
     }
     
     .youtube-logo {
-        font-size: 14px;
-        margin-right: 4px;
+        font-size: clamp(10px, 3vw, 14px);
+        margin-right: clamp(2px, 1vw, 4px);
+    }
+    
+    .row-wrap {
+        height: clamp(32px, 9vh, 48px);
+    }
+    
+    .scan-btn {
+        font-size: clamp(8px, 2.8vw, 12px);
+    }
+    
+    .text-input {
+        font-size: clamp(12px, 4vw, 16px);
+    }
+}
+
+/* Prevent layout breaks on very wide screens */
+@media (min-width: 2000px) {
+    #app {
+        max-width: 1800px;
+        transform: scale(1.1);
+        transform-origin: center top;
+    }
+}
+
+/* High DPI screens adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+    .scan-btn.focused {
+        border-width: 2px;
+    }
+    
+    .row-wrap.focused {
+        border-width: 2px;
     }
 }
