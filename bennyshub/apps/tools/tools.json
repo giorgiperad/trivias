@@ -15,10 +15,10 @@
       "genres": ["Communication", "Accessibility"]
     },
     {
-      "id": "websearch",
+      "id": "ytsearch",
       "title": "YouTube Search",
       "description": "Search and watch YouTube videos with accessible scanning controls.",
-      "path": "apps/tools/websearch/index.html",
+      "path": "apps/tools/ytsearch/index.html",
       "genres": ["Entertainment", "Accessibility", "Media"]
     }
   ]
