@@ -449,10 +449,38 @@ class GameLogic {
             return this.game.gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.6 ? 'Ball' : 'Strike');
         }
         
-        // Power swing has 5% home run chance, normal swing has 0%
+        // Base weights for power swing and normal swing
         const weights = swing === 'Power Swing' ? 
             { Strike: 57, Foul: 12, 'Pop Fly Out': 12, 'Home Run': 5, Double: 7, Single: 7 } :
             { Strike: 40, Foul: 25, 'Pop Fly Out': 8, 'Ground Out': 8, Single: 13, Double: 4, Triple: 2, 'Home Run': 0 };
+        
+        // Comeback logic: 30% boost to hits if player is losing by 2+ after 7th inning
+        const gameState = this.game.gameState;
+        if (gameState.currentInning >= 7) {
+            const playerTeam = gameState.getPlayerTeam();
+            const computerTeam = gameState.getComputerTeam();
+            
+            // Get scores for player and computer
+            const playerScore = playerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+            const computerScore = computerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+            
+            // If player is losing by 2 or more runs, boost hit chances
+            if (playerScore + 2 <= computerScore) {
+                // Calculate 30% boost by reducing outs and increasing hits
+                const boostFactor = 1.3;
+                
+                // Reduce strike and out chances
+                weights.Strike = Math.round(weights.Strike / boostFactor);
+                if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / boostFactor);
+                if (weights['Ground Out']) weights['Ground Out'] = Math.round(weights['Ground Out'] / boostFactor);
+                
+                // Boost hit chances
+                if (weights.Single) weights.Single = Math.round(weights.Single * boostFactor);
+                if (weights.Double) weights.Double = Math.round(weights.Double * boostFactor);
+                if (weights.Triple) weights.Triple = Math.round(weights.Triple * boostFactor);
+                if (weights['Home Run']) weights['Home Run'] = Math.round(weights['Home Run'] * boostFactor);
+            }
+        }
         
         return this.weightedChoice(weights);
     }
@@ -510,31 +538,91 @@ class GameLogic {
 
     processPitch(pitchType) {
         const gameState = this.game.gameState;
+        
+        // Each pitch has unique strategic probabilities
         const probabilities = {
-            Fastball: { strike: 45, ball: 20, hit: 38 }, // +3% hit chance for computer
-            Curveball: { strike: 40, ball: 25, hit: 38 }, // +3% hit chance for computer
-            Slider: { strike: 45, ball: 30, hit: 28 }, // +3% hit chance for computer  
-            Knuckleball: { strike: 40, ball: 30, hit: 33 }, // +3% hit chance for computer
-            Changeup: { strike: 40, ball: 22, hit: 41 } // +3% hit chance for computer
+            // Fastball: High strike rate, some power potential, risky
+            Fastball: { 
+                strike: 50, 
+                ball: 25, 
+                foul: 15,
+                outcomes: { Single: 10, Double: 7, Triple: 5, 'Home Run': 1, 'Pop Fly Out': 10, 'Ground Out': 12 }
+            },
+            
+            // Curveball: Moderate strike rate, more ground balls, no home runs
+            Curveball: { 
+                strike: 40, 
+                ball: 30, 
+                foul: 20,
+                outcomes: { Single: 12, Double: 10, Triple: 5, 'Home Run': 0, 'Pop Fly Out': 8, 'Ground Out': 15 }
+            },
+            
+            // Slider: Good strike rate, balanced outcomes, no home runs
+            Slider: { 
+                strike: 45, 
+                ball: 30, 
+                foul: 18,
+                outcomes: { Single: 14, Double: 8, Triple: 3, 'Home Run': 0, 'Pop Fly Out': 12, 'Ground Out': 13 }
+            },
+            
+            // Knuckleball: Unpredictable, high ball rate, tricky to hit hard
+            Knuckleball: { 
+                strike: 35, 
+                ball: 40, 
+                foul: 12,
+                outcomes: { Single: 18, Double: 6, Triple: 2, 'Home Run': 0, 'Pop Fly Out': 15, 'Ground Out': 10 }
+            },
+            
+            // Changeup: Deceptive, decent strikes, some power risk
+            Changeup: { 
+                strike: 42, 
+                ball: 28, 
+                foul: 17,
+                outcomes: { Single: 15, Double: 9, Triple: 4, 'Home Run': 1, 'Pop Fly Out': 14, 'Ground Out': 11 }
+            }
         };
         
-        let { strike, ball, hit } = probabilities[pitchType] || probabilities.Fastball;
+        let pitchProbs = probabilities[pitchType] || probabilities.Fastball;
+        
+        // Penalty for throwing same pitch repeatedly (computer learns pattern)
+        let strikeRate = pitchProbs.strike;
+        let ballRate = pitchProbs.ball;
+        let foulRate = pitchProbs.foul;
+        let hitOutcomes = { ...pitchProbs.outcomes };
         
         if (gameState.samePitchCount > 2) {
-            hit += 10 * (gameState.samePitchCount - 2);
+            const penalty = (gameState.samePitchCount - 2) * 5;
+            // Reduce strikes, increase hits
+            strikeRate = Math.max(20, strikeRate - penalty);
+            
+            // Boost hit chances when computer recognizes the pattern
+            const hitBoost = penalty / Object.keys(hitOutcomes).length;
+            Object.keys(hitOutcomes).forEach(key => {
+                if (key !== 'Home Run') { // Don't boost home runs
+                    hitOutcomes[key] += hitBoost;
+                }
+            });
         }
         
-        const total = strike + ball + hit;
-        const rand = Math.random() * total;
+        // Calculate total probabilities
+        const strikeTotal = strikeRate;
+        const ballTotal = strikeRate + ballRate;
+        const foulTotal = strikeRate + ballRate + foulRate;
+        const hitTotal = Object.values(hitOutcomes).reduce((a, b) => a + b, 0);
+        const grandTotal = foulTotal + hitTotal;
+        
+        const rand = Math.random() * grandTotal;
         
         let outcome;
-        if (rand < strike) {
+        if (rand < strikeRate) {
             outcome = 'Strike';
-        } else if (rand < strike + ball) {
+        } else if (rand < ballTotal) {
             outcome = 'Ball';
+        } else if (rand < foulTotal) {
+            outcome = 'Foul';
         } else {
-            const hitWeights = { Single: 20, Double: 5, Triple: 2, 'Home Run': 1, 'Pop Fly Out': 10, 'Ground Out': 15 };
-            outcome = this.weightedChoice(hitWeights);
+            // Determine hit outcome
+            outcome = this.weightedChoice(hitOutcomes);
         }
         
         this.processPitchOutcome(outcome);
