@@ -288,8 +288,8 @@ class GameLogic {
                 gameState.pendingBaseUpdate = () => {
                     // Force advance chain: only advance if the runner behind forces them
                     
-                    // Check if 3rd base runner is forced home (only if 2nd base is occupied)
-                    if (gameState.bases.third && gameState.bases.second) {
+                    // Check if 3rd base runner is forced home (only if BOTH 2nd AND 1st base are occupied)
+                    if (gameState.bases.third && gameState.bases.second && gameState.bases.first) {
                         gameState.bases.third = null; // Runner scores
                         // Add run to batting team
                         const battingTeam = gameState.getBattingTeam();
@@ -297,14 +297,14 @@ class GameLogic {
                         gameState.score[team]++;
                     }
                     
-                    // Check if 2nd base runner is forced to 3rd (only if 1st base is occupied)
-                    if (gameState.bases.second && gameState.bases.first) {
+                    // Check if 2nd base runner is forced to 3rd (only if 1st base is occupied AND 3rd is now empty)
+                    if (gameState.bases.second && gameState.bases.first && !gameState.bases.third) {
                         gameState.bases.third = gameState.bases.second;
                         gameState.bases.second = null;
                     }
                     
-                    // Check if 1st base runner is forced to 2nd (always forced by batter attempting to reach 1st)
-                    if (gameState.bases.first) {
+                    // Check if 1st base runner is forced to 2nd (always forced by batter attempting to reach 1st, and 2nd is now empty)
+                    if (gameState.bases.first && !gameState.bases.second) {
                         gameState.bases.second = gameState.bases.first;
                     }
                     
@@ -316,8 +316,8 @@ class GameLogic {
                 gameState.pendingBaseUpdate = () => {
                     // Force advance chain: advance all forced runners
                     
-                    // Check if 3rd base runner is forced home (only if 2nd base is occupied)
-                    if (gameState.bases.third && gameState.bases.second) {
+                    // Check if 3rd base runner is forced home (only if BOTH 2nd AND 1st base are occupied)
+                    if (gameState.bases.third && gameState.bases.second && gameState.bases.first) {
                         gameState.bases.third = null; // Runner scores
                         // Add run to batting team
                         const battingTeam = gameState.getBattingTeam();
@@ -325,13 +325,13 @@ class GameLogic {
                         gameState.score[team]++;
                     }
                     
-                    // Check if 2nd base runner is forced to 3rd (only if 1st base is occupied)
-                    if (gameState.bases.second && gameState.bases.first) {
+                    // Check if 2nd base runner is forced to 3rd (only if 1st base is occupied AND 3rd is now empty)
+                    if (gameState.bases.second && gameState.bases.first && !gameState.bases.third) {
                         gameState.bases.third = gameState.bases.second;
                     }
                     
-                    // Check if 1st base runner is forced to 2nd (always forced by batter taking 1st)
-                    if (gameState.bases.first) {
+                    // Check if 1st base runner is forced to 2nd (always forced by batter taking 1st, and 2nd is now empty)
+                    if (gameState.bases.first && !gameState.bases.second) {
                         gameState.bases.second = gameState.bases.first;
                     }
                     
@@ -465,7 +465,7 @@ class GameLogic {
         const holdCount = gameState.consecutiveHolds;
         
         // Special logic: 4+ holds guarantees a hit
-        if (holdCount >= 4) {
+        if (holdCount >= 5) {
             // Determine hit type based on swing type
             const hitWeights = swing === 'Power Swing' ? 
                 { Single: 70, Double: 20, Triple: 15, 'Home Run': 5 } :
