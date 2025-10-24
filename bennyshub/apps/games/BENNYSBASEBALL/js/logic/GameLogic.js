@@ -22,28 +22,13 @@ class GameLogic {
         this.game.gameState.playerSelectedColor = playerColorData.color;
         
         if (mode === 'season') {
-            // FIRST: Check if there's a game in progress to resume (mid-game save from pause menu)
+            // Check if there's a game in progress to resume
             if (this.game.seasonManager.hasGameInProgress()) {
                 this.resumeSeasonGame();
                 return;
             }
             
-            // If no saved game, check if we need to select next opponent or handle season end
             opponentColorData = this.game.seasonManager.selectOpponent();
-            
-            // Check if season failed to qualify for playoffs
-            if (!opponentColorData && this.game.seasonManager.data.seasonFailed) {
-                // Show "Better luck next season" message and reset
-                this.game.audioSystem.speak(`Season ended with ${this.game.seasonManager.data.wins} wins and ${this.game.seasonManager.data.losses} losses. Better luck next season!`);
-                
-                // Reset the season after a delay
-                setTimeout(() => {
-                    this.game.seasonManager.reset();
-                    this.game.menuSystem.showMainMenu();
-                }, 5000);
-                return;
-            }
-            
             this.game.seasonManager.save();
         } else {
             // Exhibition - random opponent
@@ -189,10 +174,6 @@ class GameLogic {
         gameState.selectedIndex = -1;
         gameState.menuReady = false;
         gameState.hasScanned = false;
-        
-        // Show pause button when swing menu appears
-        this.game.pauseButton.classList.add('visible');
-        
         this.game.menuSystem.drawSwingMenu();
     }
 
@@ -272,6 +253,11 @@ class GameLogic {
         let outcome = null;
         let terminal = false;
 
+        // Track consecutive holds for boost mechanic
+        if (swing === 'Hold') {
+            gameState.consecutiveHolds++;
+        }
+
         if (swing === 'Bunt') {
             const rand = Math.random();
             if (rand < 0.4) {
@@ -287,6 +273,9 @@ class GameLogic {
                 // Play baseball hit sound for bunt singles
                 this.playBaseballHitSound();
             }
+            
+            // Reset hold counter when using bunt
+            gameState.consecutiveHolds = 0;
             
             terminal = outcome !== 'Foul';
             
@@ -431,6 +420,11 @@ class GameLogic {
             }
         }
 
+        // Reset hold counter after any swing outcome (except balls/strikes which aren't swings)
+        if (!['Ball', 'Strike'].includes(outcome)) {
+            gameState.consecutiveHolds = 0;
+        }
+
         if (terminal) {
             gameState.balls = 0;
             gameState.strikes = 0;
@@ -464,8 +458,19 @@ class GameLogic {
     }
 
     simulateBatting(swing) {
+        const gameState = this.game.gameState;
+        
         if (swing === 'Hold') {
-            return this.game.gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.6 ? 'Ball' : 'Strike');
+            return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.6 ? 'Ball' : 'Strike');
+        }
+        
+        // Check if player has 30% boost from 4 consecutive holds
+        const hasHoldBoost = gameState.consecutiveHolds >= 4;
+        
+        // Reset hold counter after using the boost on a power/normal swing
+        if (hasHoldBoost && (swing === 'Power Swing' || swing === 'Normal Swing')) {
+            gameState.consecutiveHolds = 0;
+            this.game.audioSystem.speak('Patience boost activated!');
         }
         
         // Base weights for power swing and normal swing
@@ -474,8 +479,23 @@ class GameLogic {
             // Normal swing: 10% boost to hits (reduced strikes/outs, increased hit chances)
             { Strike: 32, Foul: 25, 'Pop Fly Out': 6, 'Ground Out': 6, Single: 17, Double: 8, Triple: 4, 'Home Run': 1 };
         
+        // Apply 30% boost if player held 4+ times in a row
+        if (hasHoldBoost) {
+            const boostFactor = 1.3;
+            
+            // Reduce strike and out chances
+            weights.Strike = Math.round(weights.Strike / boostFactor);
+            if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / boostFactor);
+            if (weights['Ground Out']) weights['Ground Out'] = Math.round(weights['Ground Out'] / boostFactor);
+            
+            // Boost hit chances
+            if (weights.Single) weights.Single = Math.round(weights.Single * boostFactor);
+            if (weights.Double) weights.Double = Math.round(weights.Double * boostFactor);
+            if (weights.Triple) weights.Triple = Math.round(weights.Triple * boostFactor);
+            if (weights['Home Run']) weights['Home Run'] = Math.round(weights['Home Run'] * boostFactor);
+        }
+        
         // Comeback logic: 30% boost to hits if player is losing by 2+ after 7th inning
-        const gameState = this.game.gameState;
         if (gameState.currentInning >= 7) {
             const playerTeam = gameState.getPlayerTeam();
             const computerTeam = gameState.getComputerTeam();
@@ -516,10 +536,6 @@ class GameLogic {
         gameState.selectedIndex = -1;
         gameState.menuReady = false;
         gameState.hasScanned = false;
-        
-        // Show pause button when pitch menu appears
-        this.game.pauseButton.classList.add('visible');
-        
         this.game.menuSystem.drawPitchMenu();
         this.game.audioSystem.speak("Choose your pitch.");
     }
