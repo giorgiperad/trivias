@@ -391,17 +391,26 @@ class MenuSystem {
         } else if (option === 'Settings') {
             this.showSettingsMenu();
         } else if (option === 'Exit Game') {
-            this.game.audioSystem.speak('Returning to Benny\'s Hub');
-            setTimeout(() => {
-                // Return to parent hub like BennysPeggle
-                if (window.parent && window.parent !== window) {
-                    // We're in an iframe, go back to parent
-                    window.parent.location.href = '/bennyshub/';
-                } else {
-                    // Direct navigation
-                    window.location.href = '/bennyshub/';
-                }
-            }, 1500);
+            this.exitApp();
+        }
+    }
+
+    exitApp() {
+        try {
+            // Try to message parent window to focus the back button
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ action: 'focusBackButton' }, '*');
+            }
+            // Navigate to parent directory (Access-Hub root)
+            location.href = '../index.html';
+        } catch(err) {
+            // Fallback: try relative navigation
+            try {
+                window.location.replace('../index.html');
+            } catch(_) {
+                // Last resort: go up one level
+                window.location.href = '..';
+            }
         }
     }
 
