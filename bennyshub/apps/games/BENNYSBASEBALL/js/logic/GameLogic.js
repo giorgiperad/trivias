@@ -865,6 +865,28 @@ class GameLogic {
             this.game.gameState.pendingBaseUpdate = null;
         }
         
+        // Check for walk-off win: home team takes lead in bottom of 9th or later
+        const gameState = this.game.gameState;
+        if (gameState.currentInning >= GAME_CONSTANTS.GAME_RULES.INNINGS_PER_GAME && 
+            gameState.half === 'bottom' && 
+            gameState.score.Blue > gameState.score.Red) {
+            // Home team (Blue) has taken the lead in bottom of 9th or later - walk-off win!
+            
+            // Save game state if in season mode before ending
+            if (this.game.seasonManager.data.active) {
+                this.game.seasonManager.saveCurrentGame(this.game.gameState);
+            }
+            
+            // Redraw everything to show final state
+            this.game.fieldRenderer.drawField(this.game.gameState);
+            this.game.fieldRenderer.drawPlayers();
+            this.game.uiRenderer.drawScoreboard(this.game.gameState);
+            
+            // End the game immediately - walk-off!
+            setTimeout(() => this.endGame(), 2000);
+            return;
+        }
+        
         // Save game state if in season mode (before potential game end)
         if (this.game.seasonManager.data.active) {
             this.game.seasonManager.saveCurrentGame(this.game.gameState);
