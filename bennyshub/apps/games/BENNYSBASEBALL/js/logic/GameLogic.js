@@ -404,7 +404,7 @@ class GameLogic {
             this.playBaseballHitSound();
             
             // Double play logic - only possible with 0 or 1 outs AND runner on first
-            if (outcome === 'Ground Out' && gameState.bases.first && gameState.outs <= 1 && Math.random() < 0.5) {
+            if (outcome === 'Ground Out' && gameState.bases.first && gameState.outs <= 1 && Math.random() < 0.75) {
                 outcome = 'Double Play';
                 gameState.outs += 2;
             } else {
