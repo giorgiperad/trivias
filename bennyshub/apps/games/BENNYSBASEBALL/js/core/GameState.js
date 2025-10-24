@@ -31,6 +31,7 @@ class GameState {
         this.selectedSwing = null;
         this.samePitchCount = 0;
         this.lastPitchType = null;
+        this.consecutiveHolds = 0; // Track consecutive "Hold" selections
         
         // Input handling
         this.spaceHeld = false;
@@ -80,6 +81,7 @@ class GameState {
         this.firstPitch = true;
         this.samePitchCount = 0;
         this.lastPitchType = null;
+        this.consecutiveHolds = 0; // Reset hold counter
         this.animating = false;
         this.playInProgress = false;
         this.inputsBlocked = false;
