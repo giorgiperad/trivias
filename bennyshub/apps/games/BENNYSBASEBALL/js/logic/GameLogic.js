@@ -834,9 +834,14 @@ class GameLogic {
         gameState.mode = GAME_CONSTANTS.MODES.GAME_OVER;
         this.game.pauseButton.classList.remove('visible');
         
-        // Determine winner based on final score
-        const playerScore = gameState.score.Red; // Red is always player team
-        const computerScore = gameState.score.Blue; // Blue is always computer team
+        // Determine winner based on final score and which team the player is on
+        const playerTeam = gameState.getPlayerTeam();
+        const computerTeam = gameState.getComputerTeam();
+        
+        // Get scores for player and computer based on their actual team assignments
+        const playerScore = playerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+        const computerScore = computerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+        
         const playerWon = playerScore > computerScore;
         
         this.game.uiRenderer.drawGameOverScreen(gameState);
