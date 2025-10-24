@@ -247,6 +247,9 @@ class NARBEApp {
             case 'clear_history':
                 window.historyManager.clearHistory();
                 break;
+            case 'settings':
+                window.settingsManager.openSettings();
+                break;
             case 'exit':
                 this.handleExit();
                 break;
@@ -722,8 +725,300 @@ class NARBEApp {
     }
 }
 
+// Settings Manager
+class SettingsManager {
+    constructor() {
+        this.settingsMenu = document.getElementById('settingsMenu');
+        this.settingsGrid = document.getElementById('settingsGrid');
+        this.settingsItems = [];
+        this.currentIndex = 0;
+        this.isOpen = false;
+        
+        // Settings state (load from localStorage)
+        this.settings = {
+            ttsEnabled: localStorage.getItem('tts_enabled') !== 'false',
+            voiceIndex: parseInt(localStorage.getItem('voice_index') || '0'),
+            autoScan: localStorage.getItem('auto_scan') !== 'false',
+            scanSpeed: localStorage.getItem('scan_speed') || 'medium'
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        // Get all settings items
+        this.settingsItems = Array.from(this.settingsGrid.querySelectorAll('.settings-item'));
+        
+        // Set up click handlers
+        this.settingsItems.forEach(item => {
+            item.addEventListener('click', () => {
+                this.handleSettingClick(item.dataset.setting);
+            });
+        });
+        
+        // Apply saved settings
+        this.applySettings();
+        this.updateSettingsDisplay();
+        
+        console.log('Settings Manager initialized');
+    }
+    
+    openSettings() {
+        this.isOpen = true;
+        this.settingsMenu.classList.remove('hidden');
+        this.currentIndex = 0;
+        
+        // Open overlay mode in scanning manager
+        window.scanningManager.overlayOpen = true;
+        window.scanningManager.overlayIndex = 0;
+        
+        // Start autoscan for settings menu
+        this.startAutoScan();
+        
+        // Apply initial focus
+        setTimeout(() => {
+            this.applyFocus();
+        }, 100);
+        
+        window.speechManager.speak('settings');
+    }
+    
+    closeSettings() {
+        this.isOpen = false;
+        this.settingsMenu.classList.add('hidden');
+        
+        // Stop autoscan
+        this.stopAutoScan();
+        
+        // Close overlay mode in scanning manager
+        window.scanningManager.closeOverlay();
+        
+        // Clear focus
+        this.clearFocus();
+        
+        window.speechManager.speak('settings closed');
+    }
+    
+    handleSettingClick(setting) {
+        switch (setting) {
+            case 'tts-toggle':
+                this.toggleTTS();
+                break;
+            case 'voice':
+                this.cycleVoice();
+                break;
+            case 'auto-scan':
+                this.toggleAutoScan();
+                break;
+            case 'scan-speed':
+                this.cycleScanSpeed();
+                break;
+            case 'close':
+                this.closeSettings();
+                break;
+        }
+    }
+    
+    toggleTTS() {
+        this.settings.ttsEnabled = !this.settings.ttsEnabled;
+        localStorage.setItem('tts_enabled', this.settings.ttsEnabled);
+        
+        window.speechManager.enabled = this.settings.ttsEnabled;
+        
+        this.updateSettingsDisplay();
+        window.speechManager.speak(this.settings.ttsEnabled ? 'TTS on' : 'TTS off');
+    }
+    
+    cycleVoice() {
+        if (!window.voiceManager) {
+            console.warn('Voice manager not available');
+            return;
+        }
+        
+        const voices = window.voiceManager.getAvailableVoices();
+        if (voices.length === 0) {
+            window.speechManager.speak('No voices available');
+            return;
+        }
+        
+        this.settings.voiceIndex = (this.settings.voiceIndex + 1) % voices.length;
+        localStorage.setItem('voice_index', this.settings.voiceIndex);
+        
+        window.voiceManager.setVoice(this.settings.voiceIndex);
+        
+        this.updateSettingsDisplay();
+        
+        const voiceName = voices[this.settings.voiceIndex].name.split(' ')[0];
+        window.speechManager.speak(voiceName);
+    }
+    
+    toggleAutoScan() {
+        this.settings.autoScan = !this.settings.autoScan;
+        localStorage.setItem('auto_scan', this.settings.autoScan);
+        
+        // Apply the setting to scanning manager
+        if (window.scanningManager) {
+            window.scanningManager.setAutoScan(this.settings.autoScan);
+        }
+        
+        // Start or stop settings menu autoscan
+        if (this.isOpen) {
+            if (this.settings.autoScan) {
+                this.startAutoScan();
+            } else {
+                this.stopAutoScan();
+            }
+        }
+        
+        this.updateSettingsDisplay();
+        window.speechManager.speak(this.settings.autoScan ? 'auto scan on' : 'auto scan off');
+    }
+    
+    cycleScanSpeed() {
+        const speeds = ['slow', 'medium', 'fast'];
+        const currentIndex = speeds.indexOf(this.settings.scanSpeed);
+        const nextIndex = (currentIndex + 1) % speeds.length;
+        this.settings.scanSpeed = speeds[nextIndex];
+        
+        localStorage.setItem('scan_speed', this.settings.scanSpeed);
+        
+        // Apply the setting to scanning manager
+        if (window.scanningManager) {
+            window.scanningManager.setScanSpeed(this.settings.scanSpeed);
+        }
+        
+        // Restart settings autoscan with new speed if settings menu is open
+        if (this.isOpen && window.scanningManager.autoScanEnabled) {
+            this.startAutoScan();
+        }
+        
+        this.updateSettingsDisplay();
+        window.speechManager.speak('speed ' + this.settings.scanSpeed);
+    }
+    
+    applySettings() {
+        // Apply TTS setting
+        if (window.speechManager) {
+            window.speechManager.enabled = this.settings.ttsEnabled;
+        }
+        
+        // Apply voice setting
+        if (window.voiceManager) {
+            window.voiceManager.setVoice(this.settings.voiceIndex);
+        }
+    }
+    
+    updateSettingsDisplay() {
+        // Update TTS toggle
+        const ttsValue = document.getElementById('ttsToggleValue');
+        if (ttsValue) {
+            ttsValue.textContent = this.settings.ttsEnabled ? 'On' : 'Off';
+        }
+        
+        // Update voice
+        const voiceValue = document.getElementById('voiceValue');
+        if (voiceValue && window.voiceManager) {
+            const voices = window.voiceManager.getAvailableVoices();
+            if (voices.length > 0 && voices[this.settings.voiceIndex]) {
+                const voiceName = voices[this.settings.voiceIndex].name.split(' ')[0];
+                voiceValue.textContent = voiceName;
+            } else {
+                voiceValue.textContent = 'Default';
+            }
+        }
+        
+        // Update auto scan
+        const autoScanValue = document.getElementById('autoScanValue');
+        if (autoScanValue) {
+            autoScanValue.textContent = this.settings.autoScan ? 'On' : 'Off';
+        }
+        
+        // Update scan speed
+        const scanSpeedValue = document.getElementById('scanSpeedValue');
+        if (scanSpeedValue) {
+            scanSpeedValue.textContent = this.settings.scanSpeed.charAt(0).toUpperCase() + 
+                                        this.settings.scanSpeed.slice(1);
+        }
+    }
+    
+    // Scanning support methods
+    focusNext() {
+        if (this.settingsItems.length === 0) return;
+        
+        this.currentIndex = (this.currentIndex + 1) % this.settingsItems.length;
+        this.applyFocus();
+    }
+    
+    focusPrev() {
+        if (this.settingsItems.length === 0) return;
+        
+        this.currentIndex = (this.currentIndex - 1 + this.settingsItems.length) % this.settingsItems.length;
+        this.applyFocus();
+    }
+    
+    applyFocus() {
+        this.clearFocus();
+        
+        const currentItem = this.settingsItems[this.currentIndex];
+        if (currentItem) {
+            currentItem.classList.add('focused');
+            
+            // Speak the setting label
+            const label = currentItem.querySelector('.setting-label');
+            const value = currentItem.querySelector('.setting-value');
+            if (label && value) {
+                window.speechManager.speak(label.textContent + ' ' + value.textContent);
+            }
+        }
+    }
+    
+    clearFocus() {
+        this.settingsItems.forEach(item => {
+            item.classList.remove('focused');
+        });
+    }
+    
+    activate() {
+        const currentItem = this.settingsItems[this.currentIndex];
+        if (currentItem) {
+            currentItem.click();
+        }
+    }
+    
+    // Auto scan methods for settings
+    startAutoScan() {
+        if (!window.scanningManager.autoScanEnabled) return;
+        
+        this.stopAutoScan();
+        
+        const interval = window.scanningManager.scanSpeeds[window.scanningManager.scanSpeed];
+        
+        this.autoScanTimer = setInterval(() => {
+            // Don't auto scan if user is interacting
+            if (window.scanningManager.spaceDown || window.scanningManager.enterDown) {
+                return;
+            }
+            
+            this.focusNext();
+        }, interval);
+        
+        console.log(`Settings auto scan started: ${window.scanningManager.scanSpeed} (${interval}ms)`);
+    }
+    
+    stopAutoScan() {
+        if (this.autoScanTimer) {
+            clearInterval(this.autoScanTimer);
+            this.autoScanTimer = null;
+            console.log('Settings auto scan stopped');
+        }
+    }
+}
+
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize settings manager first
+    window.settingsManager = new SettingsManager();
+    // Then initialize the main app
     window.narbe = new NARBEApp();
 });
 

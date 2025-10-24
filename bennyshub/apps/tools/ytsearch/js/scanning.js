@@ -14,6 +14,16 @@ class ScanningManager {
         this.ENTER_HOLD_MS = 3000;
         this.INPUT_COOLDOWN_MS = 500;
         
+        // Auto scan configuration
+        this.autoScanEnabled = localStorage.getItem('auto_scan') !== 'false';
+        this.autoScanTimer = null;
+        this.scanSpeed = localStorage.getItem('scan_speed') || 'medium';
+        this.scanSpeeds = {
+            'slow': 3000,
+            'medium': 2000,
+            'fast': 1000
+        };
+        
         // Input state
         this.spaceDown = false;
         this.spaceAt = 0;
@@ -79,6 +89,7 @@ class ScanningManager {
                 setTimeout(() => {
                     this.getAllRows();
                     this.highlightRows();
+                    this.startAutoScan();
                 }, 100);
             });
         } else {
@@ -87,6 +98,7 @@ class ScanningManager {
             setTimeout(() => {
                 this.getAllRows();
                 this.highlightRows();
+                this.startAutoScan();
             }, 100);
         }
     }
@@ -106,6 +118,11 @@ class ScanningManager {
 
     handleKeyDown(e) {
         if (e.repeat) return;
+        
+        // Pause auto scan when user presses a key
+        if (this.autoScanEnabled && this.autoScanTimer) {
+            this.stopAutoScan();
+        }
         
         if (e.code === 'Space') {
             if (!this.spaceDown) {
@@ -174,6 +191,10 @@ class ScanningManager {
             this.stopEnterTimer();
             if (this.enterLongFired) {
                 this.enterLongFired = false;
+                // Resume auto scan after long press
+                if (this.autoScanEnabled && !this.overlayOpen) {
+                    this.startAutoScan();
+                }
                 return;
             }
             
@@ -187,6 +208,13 @@ class ScanningManager {
                 this.enterRow();
             }
             this.armCooldown();
+        }
+        
+        // Resume auto scan after key release
+        if (this.autoScanEnabled && !this.overlayOpen) {
+            setTimeout(() => {
+                this.startAutoScan();
+            }, 1000);
         }
     }
     
@@ -349,6 +377,11 @@ class ScanningManager {
                 window.speechManager.speak('empty');
             }
             return;
+        }
+        
+        // Stop auto scan when entering key mode
+        if (this.autoScanEnabled) {
+            this.stopAutoScan();
         }
         
         // Allow entering history rows for selection
@@ -538,6 +571,12 @@ class ScanningManager {
             return Array.from(shortsFeed.querySelectorAll('.scan-btn'));
         }
         
+        // Check if settings menu is open
+        const settingsMenu = document.getElementById('settingsMenu');
+        if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
+            return Array.from(settingsMenu.querySelectorAll('.settings-item'));
+        }
+        
         const imageSlideshow = document.getElementById('image-slideshow');
         const videoSlideshow = document.getElementById('video-slideshow');
         
@@ -556,6 +595,13 @@ class ScanningManager {
         const buttons = this.getOverlayButtons();
         if (buttons.length === 0) return;
         
+        // Check if settings menu is using its own manager
+        const settingsMenu = document.getElementById('settingsMenu');
+        if (settingsMenu && !settingsMenu.classList.contains('hidden') && window.settingsManager) {
+            window.settingsManager.focusNext();
+            return;
+        }
+        
         this.overlayIndex = (this.overlayIndex + 1) % buttons.length;
         this.applyOverlayFocus(buttons);
     }
@@ -563,6 +609,13 @@ class ScanningManager {
     overlayFocusPrev() {
         const buttons = this.getOverlayButtons();
         if (buttons.length === 0) return;
+        
+        // Check if settings menu is using its own manager
+        const settingsMenu = document.getElementById('settingsMenu');
+        if (settingsMenu && !settingsMenu.classList.contains('hidden') && window.settingsManager) {
+            window.settingsManager.focusPrev();
+            return;
+        }
         
         this.overlayIndex = (this.overlayIndex - 1 + buttons.length) % buttons.length;
         this.applyOverlayFocus(buttons);
@@ -584,6 +637,13 @@ class ScanningManager {
         const buttons = this.getOverlayButtons();
         if (buttons.length === 0) return;
         
+        // Check if settings menu is using its own manager
+        const settingsMenu = document.getElementById('settingsMenu');
+        if (settingsMenu && !settingsMenu.classList.contains('hidden') && window.settingsManager) {
+            window.settingsManager.activate();
+            return;
+        }
+        
         const currentButton = buttons[this.overlayIndex];
         if (currentButton) {
             currentButton.click();
@@ -594,6 +654,11 @@ class ScanningManager {
     openOverlay() {
         this.overlayOpen = true;
         this.overlayIndex = 0;
+        
+        // Stop auto scan when overlay is open
+        if (this.autoScanEnabled) {
+            this.stopAutoScan();
+        }
         
         // Apply initial focus
         setTimeout(() => {
@@ -612,6 +677,13 @@ class ScanningManager {
         document.querySelectorAll('.slideshow-overlay .scan-btn').forEach(btn => {
             btn.classList.remove('focused');
         });
+        
+        // Resume auto scan when overlay is closed
+        if (this.autoScanEnabled) {
+            setTimeout(() => {
+                this.startAutoScan();
+            }, 1000);
+        }
     }
     
     // Update status display
@@ -654,6 +726,55 @@ class ScanningManager {
         // Re-highlight current row
         if (this.mode === 'ROWS') {
             this.highlightRows();
+        }
+    }
+    
+    // Auto scan methods
+    startAutoScan() {
+        if (!this.autoScanEnabled) return;
+        
+        this.stopAutoScan();
+        
+        const interval = this.scanSpeeds[this.scanSpeed];
+        
+        this.autoScanTimer = setInterval(() => {
+            // Don't auto scan if user is interacting or in overlay mode
+            if (this.spaceDown || this.enterDown || this.overlayOpen) {
+                return;
+            }
+            
+            if (this.mode === 'ROWS') {
+                this.scanRowsNext();
+            } else {
+                this.scanKeysNext();
+            }
+        }, interval);
+        
+        console.log(`Auto scan started: ${this.scanSpeed} (${interval}ms)`);
+    }
+    
+    stopAutoScan() {
+        if (this.autoScanTimer) {
+            clearInterval(this.autoScanTimer);
+            this.autoScanTimer = null;
+            console.log('Auto scan stopped');
+        }
+    }
+    
+    setAutoScan(enabled) {
+        this.autoScanEnabled = enabled;
+        if (enabled) {
+            this.startAutoScan();
+        } else {
+            this.stopAutoScan();
+        }
+    }
+    
+    setScanSpeed(speed) {
+        this.scanSpeed = speed;
+        if (this.autoScanEnabled) {
+            // Restart with new speed
+            this.startAutoScan();
         }
     }
 }
