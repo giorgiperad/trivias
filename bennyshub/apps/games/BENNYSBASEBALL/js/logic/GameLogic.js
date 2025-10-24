@@ -459,14 +459,24 @@ class GameLogic {
         const gameState = this.game.gameState;
         
         if (swing === 'Hold') {
-            return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.6 ? 'Ball' : 'Strike');
+            return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.4 ? 'Ball' : 'Strike');
+        }
+        
+        // Special logic: 4+ holds guarantees a hit
+        if (gameState.consecutiveHolds >= 4) {
+            // Determine hit type based on swing type
+            const hitWeights = swing === 'Power Swing' ? 
+                { Single: 70, Double: 15, Triple: 10, 'Home Run': 5 } :
+                { Single: 60, Double: 25, Triple: 12, 'Home Run': 3 };
+            
+            return this.weightedChoice(hitWeights);
         }
         
         // Calculate boost: 10% per consecutive hold (capped at 100% for 10 holds)
         const boostPercent = Math.min(gameState.consecutiveHolds * 10, 100);
         const boostFactor = 1 + (boostPercent / 100); // 1.0 to 2.0
         
-        // Announce boost if active
+        // Announce boost if active (but less than 4 holds)
         if (gameState.consecutiveHolds > 0) {
             this.game.audioSystem.speak(`${boostPercent}% patience boost activated!`);
         }
@@ -503,18 +513,18 @@ class GameLogic {
             // If player is losing by 2 or more runs, boost hit chances
             if (playerScore + 2 <= computerScore) {
                 // Calculate 30% boost by reducing outs and increasing hits
-                const boostFactor = 1.3;
+                const comebackBoostFactor = 1.3;
                 
                 // Reduce strike and out chances
-                weights.Strike = Math.round(weights.Strike / boostFactor);
-                if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / boostFactor);
-                if (weights['Ground Out']) weights['Ground Out'] = Math.round(weights['Ground Out'] / boostFactor);
+                weights.Strike = Math.round(weights.Strike / comebackBoostFactor);
+                if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / comebackBoostFactor);
+                if (weights['Ground Out']) weights['Ground Out'] = Math.round(weights['Ground Out'] / comebackBoostFactor);
                 
                 // Boost hit chances
-                if (weights.Single) weights.Single = Math.round(weights.Single * boostFactor);
-                if (weights.Double) weights.Double = Math.round(weights.Double * boostFactor);
-                if (weights.Triple) weights.Triple = Math.round(weights.Triple * boostFactor);
-                if (weights['Home Run']) weights['Home Run'] = Math.round(weights['Home Run'] * boostFactor);
+                if (weights.Single) weights.Single = Math.round(weights.Single * comebackBoostFactor);
+                if (weights.Double) weights.Double = Math.round(weights.Double * comebackBoostFactor);
+                if (weights.Triple) weights.Triple = Math.round(weights.Triple * comebackBoostFactor);
+                if (weights['Home Run']) weights['Home Run'] = Math.round(weights['Home Run'] / comebackBoostFactor);
             }
         }
         
