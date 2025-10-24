@@ -8,6 +8,13 @@
       "genres": ["Memory", "Interactive"]
     },
     {
+      "id": "bennysbaseball",
+      "title": "Benny's Baseball",
+      "description": "Full baseball game with exhibition and season modes. Accessible with keyboard scanning and TTS support.",
+      "path": "apps/games/BENNYSBASEBALL/index.html",
+      "genres": ["Sports", "Strategy"]
+    },
+    {
       "id": "bennyspeggle",
       "title": "Benny's P3GL Game",
       "description": "Two-button friendly gameplay. Always free.",
