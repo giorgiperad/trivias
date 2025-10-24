@@ -41,11 +41,23 @@ class Game {
         
         window.restartGame = () => {
             this.pauseOverlay.classList.remove('active');
+            
+            // Make sure pause button will be visible
+            this.pauseButton.classList.add('visible');
+            
+            // Reset game state mode
+            this.gameState.mode = GAME_CONSTANTS.MODES.GAMEPLAY;
+            
             this.gameLogic.startGame();
         };
         
         window.quitToMenu = () => {
             this.pauseOverlay.classList.remove('active');
+            
+            // Set mode to main menu IMMEDIATELY to prevent any game resumption
+            this.gameState.mode = GAME_CONSTANTS.MODES.MAIN_MENU;
+            
+            // Now call quitToMainMenu to handle the rest
             this.quitToMainMenu();
         };
         
@@ -123,9 +135,9 @@ class Game {
         this.gameState.previousMode = this.gameState.mode;
         this.gameState.mode = GAME_CONSTANTS.MODES.PAUSE_MENU;
         
-        // Set up scanning for pause menu buttons - start with no option highlighted
+        // Set up scanning for pause menu buttons - start with first option
         this.gameState.menuOptions = ['Resume Game', 'Settings', 'Restart Game', 'Main Menu'];
-        this.gameState.selectedIndex = -1;
+        this.gameState.selectedIndex = 0;
         this.gameState.menuReady = true;
         this.gameState.hasScanned = false;
         
@@ -133,7 +145,8 @@ class Game {
         this.pauseOverlay.classList.add('active');
         this.audioSystem.speak('Game paused');
         
-        // Don't highlight any option initially
+        // Highlight the first option
+        this.highlightPauseButton(0);
     }
 
     highlightPauseButton(index) {
@@ -169,6 +182,7 @@ class Game {
     resumeFromPause() {
         // Return to the previous game mode
         this.gameState.mode = this.gameState.previousMode || GAME_CONSTANTS.MODES.GAMEPLAY;
+        
         this.audioSystem.speak('Resuming game');
         
         if (this.gameState.mode === GAME_CONSTANTS.MODES.BATTING) {
@@ -180,19 +194,45 @@ class Game {
         } else {
             this.drawGameScreen();
         }
+        
+        // ALWAYS ensure pause button is visible after resuming - do this LAST
+        // Use setTimeout to ensure it happens after any other state changes
+        setTimeout(() => {
+            this.pauseButton.classList.add('visible');
+        }, 50);
     }
 
     quitToMainMenu() {
+        // IMMEDIATELY set mode to prevent any game logic from running
+        this.gameState.mode = GAME_CONSTANTS.MODES.MAIN_MENU;
+        
+        // Remove pause button
         this.pauseButton.classList.remove('visible');
         
-        // Reset all game state
-        this.gameState.mode = GAME_CONSTANTS.MODES.MAIN_MENU;
+        // Only clear the current game if NOT in season mode
+        // In exhibition mode, clear the game since there's no save system
+        // In season mode, keep the saved game so user can resume later
+        if (!this.seasonManager.data.active) {
+            // Exhibition mode - clear everything
+            this.seasonManager.clearCurrentGame();
+        }
+        // If in season mode, the saved game remains intact for resuming later
+        
+        // Force clear any pending timeouts in GameLogic
+        if (this.gameLogic.playTimeoutId) {
+            clearTimeout(this.gameLogic.playTimeoutId);
+            this.gameLogic.playTimeoutId = null;
+        }
+        
+        // Reset ALL game state flags to ensure clean state
         this.gameState.animating = false;
         this.gameState.playInProgress = false;
         this.gameState.inputsBlocked = false;
         this.gameState.menuReady = false;
         this.gameState.hasScanned = false;
         this.gameState.selectedIndex = 0;
+        this.gameState.returnHeld = false;
+        this.gameState.spaceHeld = false;
         
         // Stop any ongoing animations
         if (this.gameState.runnerAnimation.active) {
@@ -200,8 +240,15 @@ class Game {
             this.gameState.runnerAnimation.runners = [];
         }
         
+        // Clear any pending base updates
+        this.gameState.pendingBaseUpdate = null;
+        
         this.audioSystem.speak('Returning to main menu');
-        this.menuSystem.showMainMenu();
+        
+        // Use setTimeout to ensure mode change is processed before showing menu
+        setTimeout(() => {
+            this.menuSystem.showMainMenu();
+        }, 100);
     }
     
     setupResizeHandler() {

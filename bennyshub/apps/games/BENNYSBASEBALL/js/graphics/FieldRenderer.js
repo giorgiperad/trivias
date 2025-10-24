@@ -98,29 +98,32 @@ class FieldRenderer {
             
             if (base.name !== 'home' && bases) {
                 const runner = bases[base.name];
-                if (runner === 'user') {
-                    // User runner - use the player's actual team color
+                if (runner === 'user' || runner === 'comp') {
+                    // Get the current batting team to determine color
                     const gameState = this.game ? this.game.gameState : null;
-                    if (gameState && gameState.getPlayerTeam() === gameState.awayTeam) {
-                        fillColor = GAME_CONSTANTS.COLORS.playerRed; // Player is away team (Red)
-                    } else {
-                        fillColor = GAME_CONSTANTS.COLORS.playerBlue; // Player is home team (Blue)
+                    if (gameState) {
+                        const battingTeam = gameState.getBattingTeam();
+                        
+                        // The batting team's runners should be highlighted with their team color
+                        // User runners should use player's team color, comp runners use computer's team color
+                        if (runner === 'user') {
+                            // Use the player's actual team color
+                            if (gameState.getPlayerTeam() === gameState.awayTeam) {
+                                fillColor = GAME_CONSTANTS.COLORS.playerRed;
+                            } else {
+                                fillColor = GAME_CONSTANTS.COLORS.playerBlue;
+                            }
+                        } else if (runner === 'comp') {
+                            // Use the computer's actual team color
+                            if (gameState.getComputerTeam() === gameState.awayTeam) {
+                                fillColor = GAME_CONSTANTS.COLORS.playerRed;
+                            } else {
+                                fillColor = GAME_CONSTANTS.COLORS.playerBlue;
+                            }
+                        }
                     }
                     
-                    // Use gray instead of white for better visibility
-                    if (fillColor === '#ffffff') {
-                        fillColor = '#888888';
-                    }
-                } else if (runner === 'comp') {
-                    // Computer runner - use the computer's actual team color
-                    const gameState = this.game ? this.game.gameState : null;
-                    if (gameState && gameState.getComputerTeam() === gameState.awayTeam) {
-                        fillColor = GAME_CONSTANTS.COLORS.playerRed; // Computer is away team (Red)
-                    } else {
-                        fillColor = GAME_CONSTANTS.COLORS.playerBlue; // Computer is home team (Blue)
-                    }
-                    
-                    // Use gray instead of white for better visibility
+                    // Use gray instead of white for better visibility if color is still white
                     if (fillColor === '#ffffff') {
                         fillColor = '#888888';
                     }

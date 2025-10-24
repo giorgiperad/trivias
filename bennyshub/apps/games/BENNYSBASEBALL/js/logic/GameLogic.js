@@ -22,13 +22,28 @@ class GameLogic {
         this.game.gameState.playerSelectedColor = playerColorData.color;
         
         if (mode === 'season') {
-            // Check if there's a game in progress to resume
+            // FIRST: Check if there's a game in progress to resume (mid-game save from pause menu)
             if (this.game.seasonManager.hasGameInProgress()) {
                 this.resumeSeasonGame();
                 return;
             }
             
+            // If no saved game, check if we need to select next opponent or handle season end
             opponentColorData = this.game.seasonManager.selectOpponent();
+            
+            // Check if season failed to qualify for playoffs
+            if (!opponentColorData && this.game.seasonManager.data.seasonFailed) {
+                // Show "Better luck next season" message and reset
+                this.game.audioSystem.speak(`Season ended with ${this.game.seasonManager.data.wins} wins and ${this.game.seasonManager.data.losses} losses. Better luck next season!`);
+                
+                // Reset the season after a delay
+                setTimeout(() => {
+                    this.game.seasonManager.reset();
+                    this.game.menuSystem.showMainMenu();
+                }, 5000);
+                return;
+            }
+            
             this.game.seasonManager.save();
         } else {
             // Exhibition - random opponent
@@ -174,6 +189,10 @@ class GameLogic {
         gameState.selectedIndex = -1;
         gameState.menuReady = false;
         gameState.hasScanned = false;
+        
+        // Show pause button when swing menu appears
+        this.game.pauseButton.classList.add('visible');
+        
         this.game.menuSystem.drawSwingMenu();
     }
 
@@ -497,6 +516,10 @@ class GameLogic {
         gameState.selectedIndex = -1;
         gameState.menuReady = false;
         gameState.hasScanned = false;
+        
+        // Show pause button when pitch menu appears
+        this.game.pauseButton.classList.add('visible');
+        
         this.game.menuSystem.drawPitchMenu();
         this.game.audioSystem.speak("Choose your pitch.");
     }

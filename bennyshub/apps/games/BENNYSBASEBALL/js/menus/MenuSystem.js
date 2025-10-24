@@ -419,6 +419,9 @@ class MenuSystem {
             this.showColorSelectMenu('exhibition');
         } else if (option === 'Season Mode') {
             this.showColorSelectMenu('season');
+        } else if (option.includes('Resume Season')) {
+            // Resume existing season - start a new game with the existing season's team color
+            this.game.gameLogic.startGameWithSettings('season', this.game.seasonManager.data.teamColor);
         } else if (option === 'Back') {
             this.showMainMenu();
         }
@@ -501,20 +504,9 @@ class MenuSystem {
     showMainMenu() {
         const gameState = this.game.gameState;
         gameState.mode = GAME_CONSTANTS.MODES.MAIN_MENU;
-        gameState.menuOptions = ['Play Game', 'Settings', 'Exit Game'];
         
-        // Add season resume option if active season exists
-        if (this.game.seasonManager.data.active) {
-            if (this.game.seasonManager.hasGameInProgress()) {
-                // There's a game in progress - show resume option
-                const seasonText = `Resume Game (${this.game.seasonManager.data.wins}-${this.game.seasonManager.data.losses})`;
-                gameState.menuOptions.splice(1, 0, seasonText);
-            } else {
-                // Season active but no game in progress - show continue season option
-                const seasonText = `Continue Season (${this.game.seasonManager.data.wins}-${this.game.seasonManager.data.losses})`;
-                gameState.menuOptions.splice(1, 0, seasonText);
-            }
-        }
+        // Simple main menu - no season info here
+        gameState.menuOptions = ['Play Game', 'Settings', 'Exit Game'];
         
         gameState.selectedIndex = 0;
         this.game.pauseButton.classList.remove('visible');
@@ -528,7 +520,17 @@ class MenuSystem {
         const gameState = this.game.gameState;
         gameState.mode = GAME_CONSTANTS.MODES.PLAY_MENU;
         gameState.previousMode = GAME_CONSTANTS.MODES.MAIN_MENU;
-        gameState.menuOptions = ['Exhibition Mode', 'Season Mode', 'Back'];
+        
+        // Check if there's an active season
+        if (this.game.seasonManager.data.active) {
+            // Replace "Season Mode" with "Resume Season" if season is active
+            const seasonText = `Resume Season (${this.game.seasonManager.data.wins}-${this.game.seasonManager.data.losses})`;
+            gameState.menuOptions = ['Exhibition Mode', seasonText, 'Back'];
+        } else {
+            // Normal menu when no active season
+            gameState.menuOptions = ['Exhibition Mode', 'Season Mode', 'Back'];
+        }
+        
         gameState.selectedIndex = 0;
         
         this.drawPlayMenu();

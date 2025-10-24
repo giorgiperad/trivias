@@ -165,6 +165,12 @@ class InputHandler {
         // Unlock audio on first interaction
         this.game.audioSystem.unlockAudio();
         
+        // Prioritize pause menu if it's active
+        if (this.game.gameState.mode === GAME_CONSTANTS.MODES.PAUSE_MENU) {
+            this.handlePauseMenuScan();
+            return;
+        }
+        
         // Block all inputs during play execution
         if (this.game.gameState.playInProgress || this.game.gameState.inputsBlocked) {
             return;
@@ -192,8 +198,6 @@ class InputHandler {
             this.handlePitchingScan();
         } else if (mode === GAME_CONSTANTS.MODES.GAMEPLAY) {
             this.handleGameplayScan();
-        } else if (mode === GAME_CONSTANTS.MODES.PAUSE_MENU) {
-            this.handlePauseMenuScan();
         }
     }
 
