@@ -256,6 +256,9 @@ class GameLogic {
         // Track consecutive holds for boost mechanic
         if (swing === 'Hold') {
             gameState.consecutiveHolds++;
+        } else {
+            // Reset hold counter on any non-hold selection
+            gameState.consecutiveHolds = 0;
         }
 
         if (swing === 'Bunt') {
@@ -420,11 +423,6 @@ class GameLogic {
             }
         }
 
-        // Reset hold counter after any swing outcome (except balls/strikes which aren't swings)
-        if (!['Ball', 'Strike'].includes(outcome)) {
-            gameState.consecutiveHolds = 0;
-        }
-
         if (terminal) {
             gameState.balls = 0;
             gameState.strikes = 0;
@@ -464,13 +462,13 @@ class GameLogic {
             return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.6 ? 'Ball' : 'Strike');
         }
         
-        // Check if player has 30% boost from 4 consecutive holds
-        const hasHoldBoost = gameState.consecutiveHolds >= 4;
+        // Calculate boost: 10% per consecutive hold (capped at 100% for 10 holds)
+        const boostPercent = Math.min(gameState.consecutiveHolds * 10, 100);
+        const boostFactor = 1 + (boostPercent / 100); // 1.0 to 2.0
         
-        // Reset hold counter after using the boost on a power/normal swing
-        if (hasHoldBoost && (swing === 'Power Swing' || swing === 'Normal Swing')) {
-            gameState.consecutiveHolds = 0;
-            this.game.audioSystem.speak('Patience boost activated!');
+        // Announce boost if active
+        if (gameState.consecutiveHolds > 0) {
+            this.game.audioSystem.speak(`${boostPercent}% patience boost activated!`);
         }
         
         // Base weights for power swing and normal swing
@@ -479,10 +477,8 @@ class GameLogic {
             // Normal swing: 10% boost to hits (reduced strikes/outs, increased hit chances)
             { Strike: 32, Foul: 25, 'Pop Fly Out': 6, 'Ground Out': 6, Single: 17, Double: 8, Triple: 4, 'Home Run': 1 };
         
-        // Apply 30% boost if player held 4+ times in a row
-        if (hasHoldBoost) {
-            const boostFactor = 1.3;
-            
+        // Apply hold boost if player held before swinging
+        if (gameState.consecutiveHolds > 0) {
             // Reduce strike and out chances
             weights.Strike = Math.round(weights.Strike / boostFactor);
             if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / boostFactor);
