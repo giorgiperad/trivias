@@ -209,7 +209,15 @@ class UIRenderer {
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const playerWon = gameState.score.Red > gameState.score.Blue;
+        // Determine winner based on player's actual team
+        const playerTeam = gameState.getPlayerTeam();
+        const computerTeam = gameState.getComputerTeam();
+        
+        // Get scores for player and computer based on their actual team assignments
+        const playerScore = playerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+        const computerScore = computerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+        
+        const playerWon = playerScore > computerScore;
         
         this.ctx.font = 'bold 80px monospace';
         this.ctx.textAlign = 'center';
