@@ -256,10 +256,12 @@ class GameLogic {
         // Track consecutive holds for boost mechanic
         if (swing === 'Hold') {
             gameState.consecutiveHolds++;
-        } else {
-            // Reset hold counter on any non-hold selection
+        } else if (swing === 'Bunt' || swing.includes('Steal')) {
+            // Reset hold counter for bunt or steal (non-swing actions)
             gameState.consecutiveHolds = 0;
         }
+        // NOTE: Do NOT reset consecutiveHolds for Normal Swing or Power Swing here
+        // It will be reset AFTER simulateBatting() processes the hold bonus
 
         if (swing === 'Bunt') {
             const rand = Math.random();
@@ -276,9 +278,6 @@ class GameLogic {
                 // Play baseball hit sound for bunt singles
                 this.playBaseballHitSound();
             }
-            
-            // Reset hold counter when using bunt
-            gameState.consecutiveHolds = 0;
             
             terminal = outcome !== 'Foul';
             
@@ -462,22 +461,28 @@ class GameLogic {
             return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.4 ? 'Ball' : 'Strike');
         }
         
+        // Store the hold count before resetting (for announcements)
+        const holdCount = gameState.consecutiveHolds;
+        
         // Special logic: 4+ holds guarantees a hit
-        if (gameState.consecutiveHolds >= 4) {
+        if (holdCount >= 4) {
             // Determine hit type based on swing type
             const hitWeights = swing === 'Power Swing' ? 
-                { Single: 70, Double: 15, Triple: 10, 'Home Run': 5 } :
+                { Single: 70, Double: 20, Triple: 15, 'Home Run': 5 } :
                 { Single: 60, Double: 25, Triple: 12, 'Home Run': 3 };
+            
+            // Reset hold counter after using the boost
+            gameState.consecutiveHolds = 0;
             
             return this.weightedChoice(hitWeights);
         }
         
         // Calculate boost: 10% per consecutive hold (capped at 100% for 10 holds)
-        const boostPercent = Math.min(gameState.consecutiveHolds * 10, 100);
+        const boostPercent = Math.min(holdCount * 10, 100);
         const boostFactor = 1 + (boostPercent / 100); // 1.0 to 2.0
         
         // Announce boost if active (but less than 4 holds)
-        if (gameState.consecutiveHolds > 0) {
+        if (holdCount > 0) {
             this.game.audioSystem.speak(`${boostPercent}% patience boost activated!`);
         }
         
@@ -488,7 +493,7 @@ class GameLogic {
             { Strike: 32, Foul: 25, 'Pop Fly Out': 6, 'Ground Out': 6, Single: 17, Double: 8, Triple: 4, 'Home Run': 1 };
         
         // Apply hold boost if player held before swinging
-        if (gameState.consecutiveHolds > 0) {
+        if (holdCount > 0) {
             // Reduce strike and out chances
             weights.Strike = Math.round(weights.Strike / boostFactor);
             if (weights['Pop Fly Out']) weights['Pop Fly Out'] = Math.round(weights['Pop Fly Out'] / boostFactor);
@@ -500,6 +505,9 @@ class GameLogic {
             if (weights.Triple) weights.Triple = Math.round(weights.Triple * boostFactor);
             if (weights['Home Run']) weights['Home Run'] = Math.round(weights['Home Run'] * boostFactor);
         }
+        
+        // Reset hold counter after using the boost
+        gameState.consecutiveHolds = 0;
         
         // Comeback logic: 30% boost to hits if player is losing by 2+ after 7th inning
         if (gameState.currentInning >= 7) {
