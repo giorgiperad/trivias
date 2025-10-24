@@ -451,8 +451,9 @@ class GameLogic {
         
         // Base weights for power swing and normal swing
         const weights = swing === 'Power Swing' ? 
-            { Strike: 57, Foul: 12, 'Pop Fly Out': 12, 'Home Run': 5, Double: 7, Single: 7 } :
-            { Strike: 40, Foul: 25, 'Pop Fly Out': 8, 'Ground Out': 8, Single: 13, Double: 4, Triple: 2, 'Home Run': 0 };
+            { Strike: 50, Foul: 15, 'Pop Fly Out': 12, 'Home Run': 5, Double: 7, Single: 7 } :
+            // Normal swing: 10% boost to hits (reduced strikes/outs, increased hit chances)
+            { Strike: 32, Foul: 25, 'Pop Fly Out': 6, 'Ground Out': 6, Single: 17, Double: 8, Triple: 4, 'Home Run': 1 };
         
         // Comeback logic: 30% boost to hits if player is losing by 2+ after 7th inning
         const gameState = this.game.gameState;
@@ -543,18 +544,18 @@ class GameLogic {
         const probabilities = {
             // Fastball: High strike rate, some power potential, risky
             Fastball: { 
-                strike: 50, 
+                strike: 60, 
                 ball: 25, 
                 foul: 15,
-                outcomes: { Single: 10, Double: 7, Triple: 5, 'Home Run': 1, 'Pop Fly Out': 10, 'Ground Out': 12 }
+                outcomes: { Single: 8.5, Double: 6, Triple: 4.25, 'Home Run': 0.85, 'Pop Fly Out': 10, 'Ground Out': 12 }
             },
             
             // Curveball: Moderate strike rate, more ground balls, no home runs
             Curveball: { 
-                strike: 40, 
+                strike: 50, 
                 ball: 30, 
                 foul: 20,
-                outcomes: { Single: 12, Double: 10, Triple: 5, 'Home Run': 0, 'Pop Fly Out': 8, 'Ground Out': 15 }
+                outcomes: { Single: 10, Double: 8.5, Triple: 4.25, 'Home Run': 0, 'Pop Fly Out': 8, 'Ground Out': 15 }
             },
             
             // Slider: Good strike rate, balanced outcomes, no home runs
@@ -562,23 +563,23 @@ class GameLogic {
                 strike: 45, 
                 ball: 30, 
                 foul: 18,
-                outcomes: { Single: 14, Double: 8, Triple: 3, 'Home Run': 0, 'Pop Fly Out': 12, 'Ground Out': 13 }
+                outcomes: { Single: 12, Double: 7, Triple: 2.5, 'Home Run': 0, 'Pop Fly Out': 12, 'Ground Out': 13 }
             },
             
             // Knuckleball: Unpredictable, high ball rate, tricky to hit hard
             Knuckleball: { 
-                strike: 35, 
+                strike: 40, 
                 ball: 40, 
                 foul: 12,
-                outcomes: { Single: 18, Double: 6, Triple: 2, 'Home Run': 0, 'Pop Fly Out': 15, 'Ground Out': 10 }
+                outcomes: { Single: 15, Double: 5, Triple: 1.7, 'Home Run': 0, 'Pop Fly Out': 15, 'Ground Out': 10 }
             },
             
             // Changeup: Deceptive, decent strikes, some power risk
             Changeup: { 
-                strike: 42, 
-                ball: 28, 
-                foul: 17,
-                outcomes: { Single: 15, Double: 9, Triple: 4, 'Home Run': 1, 'Pop Fly Out': 14, 'Ground Out': 11 }
+                strike: 45, 
+                ball: 25, 
+                foul: 20,
+                outcomes: { Single: 12.75, Double: 7.65, Triple: 3.4, 'Home Run': 0.85, 'Pop Fly Out': 14, 'Ground Out': 11 }
             }
         };
         
