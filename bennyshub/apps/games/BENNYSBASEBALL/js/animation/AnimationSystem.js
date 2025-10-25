@@ -547,8 +547,8 @@ class AnimationSystem {
         } else if (['Single', 'Double', 'Triple', 'Home Run'].includes(outcome)) {
             // For singles, only show animations for runners that actually advance due to force rules
             if (outcome === 'Single') {
-                // Third base runner only advances (and shows animation) if forced by second base runner
-                if (currentBases.third && currentBases.second) {
+                // Third base runner only advances (and shows animation) if forced by BOTH second AND first base runners
+                if (currentBases.third && currentBases.second && currentBases.first) {
                     runners.push({
                         id: 'third_to_home',
                         color: getRunnerColor(currentBases.third),
@@ -556,10 +556,10 @@ class AnimationSystem {
                     });
                 }
                 
-                // Second base runner only advances if forced by first base runner
+                // Second base runner only advances if forced by first base runner AND third is now empty
                 if (currentBases.second && currentBases.first) {
                     // Only show animation if third wasn't occupied or was forced home
-                    if (!currentBases.third || currentBases.second) {
+                    if (!currentBases.third || (currentBases.third && currentBases.second && currentBases.first)) {
                         runners.push({
                             id: 'second_to_third',
                             color: getRunnerColor(currentBases.second),
@@ -577,7 +577,6 @@ class AnimationSystem {
                     });
                 }
             } else {
-                // For doubles, triples, and home runs - existing logic
                 if (currentBases.third) {
                     runners.push({
                         id: 'third_to_home',
