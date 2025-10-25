@@ -376,6 +376,8 @@ class MenuSystem {
             this.handleSettingsSelection(option);
         } else if (gameState.mode === GAME_CONSTANTS.MODES.COLOR_SELECT) {
             this.handleColorSelection();
+        } else if (gameState.mode === GAME_CONSTANTS.MODES.RESET_CONFIRM) {
+            this.handleResetConfirmSelection(option);
         }
     }
 
@@ -471,11 +473,25 @@ class MenuSystem {
             this.game.audioSystem.nextTrack();
             this.game.audioSystem.speak("Next track");
         } else if (option === 'Reset Season') {
-            this.game.seasonManager.reset();
-            this.showSettingsMenu();
-            this.game.audioSystem.speak("Season reset");
+            // Show confirmation dialog instead of immediately resetting
+            this.showResetConfirmDialog();
         } else if (option === 'Back') {
             this.showMainMenu();
+        }
+    }
+
+    handleResetConfirmSelection(option) {
+        if (option === 'Cancel') {
+            // Go back to settings menu
+            this.showSettingsMenu();
+            this.game.gameState.selectedIndex = 5; // Reset Season option
+            this.game.audioSystem.speak("Reset cancelled");
+        } else if (option === 'Confirm') {
+            // Actually reset the season
+            this.game.seasonManager.reset();
+            this.showSettingsMenu();
+            this.game.gameState.selectedIndex = 5; // Reset Season option
+            this.game.audioSystem.speak("Season reset");
         }
     }
 
@@ -576,5 +592,44 @@ class MenuSystem {
         
         this.drawColorSelectMenu();
         this.game.audioSystem.speak(`Choose your team color for ${mode}. Current selection: ${GAME_CONSTANTS.COLOR_OPTIONS[0].name}`);
+    }
+
+    showResetConfirmDialog() {
+        const gameState = this.game.gameState;
+        gameState.mode = GAME_CONSTANTS.MODES.RESET_CONFIRM;
+        gameState.previousMode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
+        gameState.menuOptions = ['Cancel', 'Confirm'];
+        gameState.selectedIndex = 0;
+        
+        this.drawResetConfirmDialog();
+        this.game.audioSystem.speak("Are you sure you want to reset the season?");
+    }
+
+    drawResetConfirmDialog() {
+        const ctx = this.game.ctx;
+        const canvas = this.game.canvas;
+        const gameState = this.game.gameState;
+
+        ctx.fillStyle = '#000428';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        this.game.fieldRenderer.drawField(gameState);
+        
+        // Title
+        ctx.font = 'bold 48px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff6600';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.strokeText("⚠️ RESET SEASON", canvas.width / 2, 100);
+        ctx.fillText("⚠️ RESET SEASON", canvas.width / 2, 100);
+        
+        // Warning message
+        ctx.font = 'bold 24px monospace';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("Are you sure you want to", canvas.width / 2, 180);
+        ctx.fillText("reset the season?", canvas.width / 2, 220);
+        
+        this.drawMenuPanel(gameState.menuOptions, gameState.selectedIndex, 28);
     }
 }

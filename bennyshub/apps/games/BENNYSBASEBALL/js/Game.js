@@ -125,8 +125,34 @@ class Game {
         };
         
         window.pauseResetSeason = () => {
+            // Show confirmation dialog instead of immediately resetting
+            document.getElementById('pauseSettingsMenu').style.display = 'none';
+            document.getElementById('resetConfirmDialog').style.display = 'block';
+            this.gameState.menuOptions = ['Cancel', 'Confirm'];
+            this.gameState.selectedIndex = 0;
+            this.highlightResetConfirmButton(0);
+            this.audioSystem.speak('Are you sure you want to reset the season?');
+        };
+
+        window.cancelResetSeason = () => {
+            // Go back to pause settings menu
+            document.getElementById('resetConfirmDialog').style.display = 'none';
+            document.getElementById('pauseSettingsMenu').style.display = 'block';
+            this.updatePauseSettingsDisplay();
+            this.gameState.selectedIndex = 5; // Reset Season option
+            this.highlightPauseSettingsButton(5);
+            this.audioSystem.speak('Reset cancelled');
+        };
+
+        window.confirmResetSeason = () => {
+            // Actually reset the season
             this.seasonManager.reset();
-            this.audioSystem.speak("Season reset");
+            document.getElementById('resetConfirmDialog').style.display = 'none';
+            document.getElementById('pauseSettingsMenu').style.display = 'block';
+            this.updatePauseSettingsDisplay();
+            this.gameState.selectedIndex = 5; // Reset Season option
+            this.highlightPauseSettingsButton(5);
+            this.audioSystem.speak('Season reset');
         };
     }
 
@@ -167,6 +193,21 @@ class Game {
     highlightPauseSettingsButton(index) {
         // Remove highlight from all settings buttons
         const buttons = document.querySelectorAll('#pauseSettingsMenu button');
+        buttons.forEach(btn => {
+            btn.style.background = 'linear-gradient(135deg, rgba(255, 235, 59, 0.2) 0%, rgba(255, 235, 59, 0.4) 50%, rgba(255, 235, 59, 0.2) 100%)';
+            btn.style.transform = 'scale(1)';
+        });
+        
+        // Highlight selected button
+        if (buttons[index]) {
+            buttons[index].style.background = 'linear-gradient(135deg, rgba(255, 235, 59, 0.4) 0%, rgba(255, 235, 59, 0.6) 50%, rgba(255, 235, 59, 0.4) 100%)';
+            buttons[index].style.transform = 'scale(1.05)';
+        }
+    }
+
+    highlightResetConfirmButton(index) {
+        // Remove highlight from all confirm dialog buttons
+        const buttons = document.querySelectorAll('#resetConfirmDialog button');
         buttons.forEach(btn => {
             btn.style.background = 'linear-gradient(135deg, rgba(255, 235, 59, 0.2) 0%, rgba(255, 235, 59, 0.4) 50%, rgba(255, 235, 59, 0.2) 100%)';
             btn.style.transform = 'scale(1)';

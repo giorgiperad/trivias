@@ -195,6 +195,14 @@
             <button onclick="pauseResetSeason()">Reset Season</button>
             <button onclick="backToPauseMenu()">Back</button>
         </div>
+
+        <!-- Reset Season Confirmation Dialog -->
+        <div class="pause-menu" id="resetConfirmDialog" style="display: none;">
+            <h2>⚠️ RESET SEASON</h2>
+            <p style="color: #fff; font-size: 20px; margin-bottom: 30px; max-width: 400px;">Are you sure you want to reset the season?</p>
+            <button id="resetCancelBtn" onclick="cancelResetSeason()">Cancel</button>
+            <button id="resetConfirmBtn" onclick="confirmResetSeason()">Confirm</button>
+        </div>
     </div>
 
     <!-- Load JavaScript modules in dependency order -->
