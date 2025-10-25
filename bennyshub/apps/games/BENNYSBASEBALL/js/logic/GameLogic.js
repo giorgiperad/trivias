@@ -1008,13 +1008,27 @@ class GameLogic {
         
         const playerWon = playerScore > computerScore;
         
-        this.game.uiRenderer.drawGameOverScreen(gameState);
-        this.game.audioSystem.speak(playerWon ? 'YOU WON!' : 'YOU LOST!');
+        // Update season progress and check if championship was won
+        const wasChampionshipWin = this.game.seasonManager.updateProgress(playerWon);
         
-        // Update season progress
-        this.game.seasonManager.updateProgress(playerWon);
-        
-        setTimeout(() => this.game.menuSystem.showMainMenu(), GAME_CONSTANTS.TIMING.GAME_OVER_DELAY);
+        // If championship was won, show special victory screen
+        if (wasChampionshipWin) {
+            const victoryData = this.game.seasonManager.getChampionshipVictoryData();
+            this.game.uiRenderer.drawChampionshipVictoryScreen(gameState, victoryData);
+            this.game.audioSystem.speak('Championship won! You are the champion!');
+            
+            // Reset season after showing victory screen
+            setTimeout(() => {
+                this.game.seasonManager.reset();
+                this.game.menuSystem.showMainMenu();
+            }, GAME_CONSTANTS.TIMING.GAME_OVER_DELAY + 2000); // Extra time to enjoy victory
+        } else {
+            // Normal game over screen
+            this.game.uiRenderer.drawGameOverScreen(gameState);
+            this.game.audioSystem.speak(playerWon ? 'YOU WON!' : 'YOU LOST!');
+            
+            setTimeout(() => this.game.menuSystem.showMainMenu(), GAME_CONSTANTS.TIMING.GAME_OVER_DELAY);
+        }
     }
 
     weightedChoice(weights) {
