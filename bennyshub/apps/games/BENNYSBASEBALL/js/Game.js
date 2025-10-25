@@ -129,7 +129,7 @@ class Game {
             document.getElementById('pauseSettingsMenu').style.display = 'none';
             document.getElementById('resetConfirmDialog').style.display = 'block';
             this.gameState.menuOptions = ['Cancel', 'Confirm'];
-            this.gameState.selectedIndex = 0;
+            this.gameState.selectedIndex = -1;
             this.highlightResetConfirmButton(0);
             this.audioSystem.speak('Are you sure you want to reset the season?');
         };
@@ -378,4 +378,5 @@ class Game {
 window.addEventListener('load', () => {
     const game = new Game();
     game.initialize();
+
 });
