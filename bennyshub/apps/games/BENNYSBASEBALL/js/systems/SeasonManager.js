@@ -199,6 +199,9 @@ class SeasonManager {
     updateProgress(playerWon) {
         if (!this.data.active) return;
         
+        // Check if this was a championship game win BEFORE updating anything
+        const wasChampionshipWin = this.data.inChampionship && playerWon;
+        
         // Update overall record
         this.data.gamesPlayed++;
         if (playerWon) {
@@ -246,6 +249,19 @@ class SeasonManager {
         // Clear current game when game ends
         this.clearCurrentGame();
         this.save();
+        
+        // Return championship victory status
+        return wasChampionshipWin;
+    }
+
+    // Get championship victory data for the victory screen
+    getChampionshipVictoryData() {
+        return {
+            teamColor: this.data.teamColor,
+            wins: this.data.wins,
+            losses: this.data.losses,
+            finalRecord: `${this.data.wins}-${this.data.losses}`
+        };
     }
 
     getSeasonStatus() {
