@@ -599,7 +599,7 @@ class MenuSystem {
         gameState.mode = GAME_CONSTANTS.MODES.RESET_CONFIRM;
         gameState.previousMode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
         gameState.menuOptions = ['Cancel', 'Confirm'];
-        gameState.selectedIndex = 0;
+        gameState.selectedIndex = -1;
         
         this.drawResetConfirmDialog();
         this.game.audioSystem.speak("Are you sure you want to reset the season?");
@@ -632,4 +632,5 @@ class MenuSystem {
         
         this.drawMenuPanel(gameState.menuOptions, gameState.selectedIndex, 28);
     }
+
 }
