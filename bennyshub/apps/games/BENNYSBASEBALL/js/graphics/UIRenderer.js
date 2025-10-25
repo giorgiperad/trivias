@@ -239,4 +239,101 @@ class UIRenderer {
         this.ctx.fillText(finalScore, this.canvas.width / 2, this.canvas.height / 2 + 60);
         this.ctx.shadowBlur = 0;
     }
+
+    drawChampionshipVictoryScreen(gameState, victoryData) {
+        // Dark background
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Gold trophy background glow
+        const gradient = this.ctx.createRadialGradient(
+            this.canvas.width / 2, this.canvas.height / 2,
+            50,
+            this.canvas.width / 2, this.canvas.height / 2,
+            400
+        );
+        gradient.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Championship trophy/banner
+        this.ctx.font = 'bold 72px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = '#FFD700'; // Gold
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 40;
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 5;
+        
+        this.ctx.strokeText('🏆 CHAMPIONSHIP! 🏆', this.canvas.width / 2, 120);
+        this.ctx.fillText('🏆 CHAMPIONSHIP! 🏆', this.canvas.width / 2, 120);
+        
+        // Victory message
+        this.ctx.font = 'bold 56px monospace';
+        this.ctx.fillStyle = '#00ff00';
+        this.ctx.shadowColor = '#00ff00';
+        this.ctx.shadowBlur = 25;
+        this.ctx.strokeText('YOU ARE THE CHAMPION!', this.canvas.width / 2, 220);
+        this.ctx.fillText('YOU ARE THE CHAMPION!', this.canvas.width / 2, 220);
+        
+        // Team name
+        this.ctx.font = 'bold 48px monospace';
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.shadowColor = '#ffffff';
+        this.ctx.shadowBlur = 15;
+        this.ctx.strokeText(victoryData.teamColor.toUpperCase(), this.canvas.width / 2, 300);
+        this.ctx.fillText(victoryData.teamColor.toUpperCase(), this.canvas.width / 2, 300);
+        
+        // Season record box
+        const boxWidth = 600;
+        const boxHeight = 200;
+        const boxX = this.canvas.width / 2 - boxWidth / 2;
+        const boxY = 350;
+        
+        // Box with gradient
+        const boxGradient = this.ctx.createLinearGradient(boxX, boxY, boxX, boxY + boxHeight);
+        boxGradient.addColorStop(0, 'rgba(255, 215, 0, 0.2)');
+        boxGradient.addColorStop(1, 'rgba(139, 69, 19, 0.3)');
+        this.ctx.fillStyle = boxGradient;
+        this.ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Box border
+        this.ctx.strokeStyle = '#FFD700';
+        this.ctx.lineWidth = 4;
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 20;
+        this.ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Season stats
+        this.ctx.font = 'bold 36px monospace';
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 15;
+        this.ctx.strokeText('SEASON STATS', this.canvas.width / 2, boxY + 50);
+        this.ctx.fillText('SEASON STATS', this.canvas.width / 2, boxY + 50);
+        
+        // Final record
+        this.ctx.font = 'bold 52px monospace';
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.shadowColor = '#ffffff';
+        this.ctx.shadowBlur = 15;
+        const recordText = `Final Record: ${victoryData.finalRecord}`;
+        this.ctx.strokeText(recordText, this.canvas.width / 2, boxY + 120);
+        this.ctx.fillText(recordText, this.canvas.width / 2, boxY + 120);
+        
+        // Game final score
+        const playerTeam = gameState.getPlayerTeam();
+        const playerScore = playerTeam === gameState.awayTeam ? gameState.score.Red : gameState.score.Blue;
+        const computerScore = playerTeam === gameState.awayTeam ? gameState.score.Blue : gameState.score.Red;
+        
+        this.ctx.font = 'bold 32px monospace';
+        this.ctx.fillStyle = '#cccccc';
+        this.ctx.shadowBlur = 10;
+        const finalScore = `Championship Game: ${playerScore} - ${computerScore}`;
+        this.ctx.strokeText(finalScore, this.canvas.width / 2, boxY + 170);
+        this.ctx.fillText(finalScore, this.canvas.width / 2, boxY + 170);
+        
+        this.ctx.shadowBlur = 0;
+    }
 }
