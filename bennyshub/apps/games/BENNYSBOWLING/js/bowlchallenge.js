@@ -100,6 +100,9 @@ var settings = {
 	ballStyleIndex: 0,
 	themeIndex: 0
 };
+// Track if user has interacted (required for audio autoplay on HTTPS)
+var userHasInteracted = false;
+
 // Ball skins: name + preview + apply function
 var BALL_SKINS = []; // will be filled by buildBallSkins()
 var THEMES = [];
@@ -698,7 +701,7 @@ function removePlayer(id) {
 function createImitation(slot) {
 	var frames = 1 + Math.floor(Math.random() * FRAME_COUNT);
 	var emergingTime = IMITATION_EMERGING_TIME_MIN + Math.random()
-			* (IMITATION_EMERGING_TIME_MAX - IMITATION_EMERGING_TIME_MIN);
+			* (IMITATION_EMERGING_TIME_MAX - IMITATION_EMERGING_TIME_MAX);
 	return new Imitation(frames, emergingTime, slot);
 }
 
@@ -1827,7 +1830,13 @@ function applySettings() {
 		musicEl.src = 'music/music (1).mp3';
 		document.body.appendChild(musicEl);
 	}
-	if (settings.music) { try { musicEl.play(); } catch(e){} } else { try { musicEl.pause(); } catch(e){} }
+	if (settings.music && userHasInteracted) { 
+		musicEl.play().catch(function(err){
+			console.log('Music playback blocked:', err);
+		}); 
+	} else { 
+		try { musicEl.pause(); } catch(e){} 
+	}
 
 	// Reflect SFX toggle for helper
 	SFX_ENABLED = !!settings.sfx;
@@ -1841,6 +1850,9 @@ function updatePauseUIButtonVisibility() {
 }
 
 function startGame() {
+	// Mark that user has interacted (required for audio autoplay)
+	userHasInteracted = true;
+	
 	hideMainMenu(); hideSettings();
 	// Clean previous players
 	if (players && players.length) {
@@ -1856,9 +1868,15 @@ function startGame() {
 	if (chargeBar) chargeBar.style.display = 'none';
 	renderScoreboard(player.scores);
 	gameState = 'playing';
-	// Start ambient bowling background
-	ensureAmbient();
-	if (ambientEl) { try { ambientEl.play(); } catch(e){} }
+	// Start ambient bowling background (only if user has interacted)
+	if (userHasInteracted) {
+		ensureAmbient();
+		if (ambientEl) { 
+			ambientEl.play().catch(function(err){
+				console.log('Ambient audio blocked:', err);
+			}); 
+		}
+	}
 	// Reset menu scanning states
 	menuScanHeld = false; settingsScanHeld = false;
 	menuFocusIndex = 0; settingsFocusIndex = 0;
