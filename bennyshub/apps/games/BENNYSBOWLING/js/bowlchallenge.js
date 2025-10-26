@@ -821,7 +821,7 @@ function updateGame(player, dt) {
 				var standingNow = (distanceSquared < STANDING_PIN_SQUARED_OFFSET_MAX) && upright;
 				if (player._sfxPinStanding && player._sfxPinStanding[i] && !standingNow) {
 					// Transition: standing -> fallen
-					playSfx('sound/single-pin.mp3', 0.9);
+					playSfx('sound/single-pin.MP3', 0.9);
 				}
 				if (player._sfxPinStanding) player._sfxPinStanding[i] = standingNow;
 			}
@@ -2084,11 +2084,28 @@ function renderScoreboard(scores) {
 function speakText(text) {
 	try {
 		// Use shared voice manager if available
-		if (window.NarbeVoiceManager && settings.tts) {
-			window.NarbeVoiceManager.speak(text);
+		if (window.NarbeVoiceManager) {
+			// Sync TTS setting with voice manager
+			if (settings.tts && !window.NarbeVoiceManager.getSettings().ttsEnabled) {
+				window.NarbeVoiceManager.updateSettings({ ttsEnabled: true });
+			}
+			if (settings.tts) {
+				window.NarbeVoiceManager.speak(text);
+			}
+		} else {
+			// Fallback to basic TTS if voice manager not available
+			if (!('speechSynthesis' in window)) return;
+			if (!settings.tts) return;
+			window.speechSynthesis.cancel();
+			var u = new SpeechSynthesisUtterance(text);
+			u.rate = 1.0;
+			u.pitch = 1.0;
+			u.volume = 1.0;
+			window.speechSynthesis.speak(u);
 		}
 	} catch (e) {
-		// Fallback to basic TTS if voice manager fails
+		console.error('TTS error:', e);
+		// Last resort fallback to basic TTS
 		try {
 			if (!('speechSynthesis' in window)) return;
 			if (!settings.tts) return;
@@ -2098,7 +2115,9 @@ function speakText(text) {
 			u.pitch = 1.0;
 			u.volume = 1.0;
 			window.speechSynthesis.speak(u);
-		} catch (e2) {}
+		} catch (e2) {
+			console.error('Fallback TTS error:', e2);
+		}
 	}
 }
 
