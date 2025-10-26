@@ -15,6 +15,13 @@
       "genres": ["Sports", "Strategy"]
     },
     {
+      "id": "bennysbowling",
+      "title": "Benny's Bowling",
+      "description": "3D bowling game with keyboard scanning, customizable ball styles and alley themes. Accessible with TTS support.",
+      "path": "apps/games/BENNYSBOWLING/index.html",
+      "genres": ["Sports", "Simulation"]
+    },
+    {
       "id": "bennyspeggle",
       "title": "Benny's P3GL Game",
       "description": "Two-button friendly gameplay. Always free.",
