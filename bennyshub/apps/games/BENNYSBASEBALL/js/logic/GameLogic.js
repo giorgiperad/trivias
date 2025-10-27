@@ -458,7 +458,7 @@ class GameLogic {
         const gameState = this.game.gameState;
         
         if (swing === 'Hold') {
-            return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.25 ? 'Ball' : 'Strike');
+            return gameState.selectedPitchLocation === 'Outside' ? 'Ball' : (Math.random() < 0.3 ? 'Ball' : 'Strike');
         }
         
         // Store the hold count before resetting (for announcements)
@@ -594,14 +594,14 @@ class GameLogic {
         const gameState = this.game.gameState;
         
         // Each pitch has unique strategic probabilities
-        // Computer hit chances increased by 15% across all pitch types
+        // Outcomes are whole numbers, with some weight shifted from Single to Ground Out
         const probabilities = {
             // Fastball: High strike rate, some power potential, risky
             Fastball: { 
                 strike: 48, 
                 ball: 20, 
                 foul: 12,
-                outcomes: { Single: 11, Double: 8, Triple: 5.5, 'Home Run': 1.5, 'Pop Fly Out': 10, 'Ground Out': 12 }
+                outcomes: { Single: 8, Double: 7, Triple: 5, 'Home Run': 1, 'Pop Fly Out': 10, 'Ground Out': 14 }
             },
             
             // Curveball: Moderate strike rate, more ground balls, no home runs
@@ -609,7 +609,7 @@ class GameLogic {
                 strike: 38, 
                 ball: 24, 
                 foul: 16,
-                outcomes: { Single: 13, Double: 11, Triple: 5.5, 'Home Run': 0, 'Pop Fly Out': 8, 'Ground Out': 15 }
+                outcomes: { Single: 10, Double: 10, Triple: 5, 'Home Run': 0, 'Pop Fly Out': 8, 'Ground Out': 17 }
             },
             
             // Slider: Good strike rate, balanced outcomes, no home runs
@@ -617,7 +617,7 @@ class GameLogic {
                 strike: 34, 
                 ball: 24, 
                 foul: 14,
-                outcomes: { Single: 15.5, Double: 9, Triple: 3.5, 'Home Run': 0, 'Pop Fly Out': 12, 'Ground Out': 13 }
+                outcomes: { Single: 11, Double: 8, Triple: 3, 'Home Run': 0, 'Pop Fly Out': 12, 'Ground Out': 16 }
             },
             
             // Knuckleball: Unpredictable, high ball rate, tricky to hit hard
@@ -625,7 +625,7 @@ class GameLogic {
                 strike: 30, 
                 ball: 32, 
                 foul: 10,
-                outcomes: { Single: 19, Double: 6.5, Triple: 2.5, 'Home Run': 0, 'Pop Fly Out': 15, 'Ground Out': 10 }
+                outcomes: { Single: 15, Double: 6, Triple: 2, 'Home Run': 0, 'Pop Fly Out': 15, 'Ground Out': 12 }
             },
             
             // Changeup: Deceptive, decent strikes, some power risk
@@ -633,7 +633,7 @@ class GameLogic {
                 strike: 34, 
                 ball: 20, 
                 foul: 16,
-                outcomes: { Single: 16.5, Double: 10, Triple: 4.5, 'Home Run': 1.5, 'Pop Fly Out': 14, 'Ground Out': 11 }
+                outcomes: { Single: 12, Double: 9, Triple: 4, 'Home Run': 1, 'Pop Fly Out': 14, 'Ground Out': 13 }
             }
         };
         
@@ -682,7 +682,7 @@ class GameLogic {
         
         this.processPitchOutcome(outcome);
     }
-
+    
     processPitchOutcome(outcome) {
         const gameState = this.game.gameState;
         let terminal = false;
@@ -711,7 +711,7 @@ class GameLogic {
             this.playBaseballHitSound();
             
             // Double play logic - only possible with 0 or 1 outs AND runner on first
-            if (outcome === 'Ground Out' && gameState.bases.first && gameState.outs <= 1 && Math.random() < 0.5) {
+            if (outcome === 'Ground Out' && gameState.bases.first && gameState.outs <= 1 && Math.random() < 0.65) {
                 outcome = 'Double Play';
                 gameState.outs += 2;
             } else {
