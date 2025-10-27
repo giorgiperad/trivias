@@ -1545,12 +1545,19 @@ function saveSettings() {
 	try {
 		localStorage.setItem('benny_settings', JSON.stringify(settings));
 		
-		// Sync TTS setting to voice manager
+		// Sync TTS setting to voice manager without overriding its current voice
 		if (window.NarbeVoiceManager) {
 			try {
+				// Pull current voice index from the manager to keep local settings in sync
+				if (typeof window.NarbeVoiceManager.getSettings === 'function') {
+					var vmSettings = window.NarbeVoiceManager.getSettings();
+					if (vmSettings && typeof vmSettings.voiceIndex === 'number') {
+						settings.voiceIndex = vmSettings.voiceIndex;
+					}
+				}
+				// Only update TTS enabled flag; do not pass voiceIndex here to avoid unintended resets
 				window.NarbeVoiceManager.updateSettings({ 
-					ttsEnabled: settings.tts,
-					voiceIndex: settings.voiceIndex 
+					ttsEnabled: settings.tts
 				});
 				console.log('Bowling: Updated voice manager - TTS:', settings.tts);
 			} catch(e) {
@@ -1656,6 +1663,14 @@ function buildMenus() {
 		window.NarbeVoiceManager.cycleVoice();
 		var newVoice = window.NarbeVoiceManager.getCurrentVoice();
 		var displayName = window.NarbeVoiceManager.getVoiceDisplayName(newVoice);
+		// Persist the selected voice index so later saves do not revert it
+		try {
+			var vmSettings = window.NarbeVoiceManager.getSettings && window.NarbeVoiceManager.getSettings();
+			if (vmSettings && typeof vmSettings.voiceIndex === 'number') {
+				settings.voiceIndex = vmSettings.voiceIndex;
+				try { localStorage.setItem('benny_settings', JSON.stringify(settings)); } catch(_){}
+			}
+		} catch(_){}
 		speakText('Voice changed to ' + displayName);
 	}
 
