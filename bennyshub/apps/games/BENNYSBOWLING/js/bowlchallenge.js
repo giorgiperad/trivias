@@ -93,13 +93,12 @@ function stopAmbient() {
 	try { if (ambientEl) { ambientEl.pause(); ambientEl.currentTime = 0; } } catch(e) {}
 }
 var settings = {
-	tts: true,
 	music: false,
 	sfx: true,
-	voiceIndex: 0,
 	ballStyleIndex: 0,
 	themeIndex: 0
 };
+// TTS and voice settings now managed entirely by NarbeVoiceManager
 // Track if user has interacted (required for audio autoplay on HTTPS)
 var userHasInteracted = false;
 
@@ -1510,11 +1509,54 @@ function loadSettings() {
 			}
 		}
 	} catch (e) {}
+	
+	// Sync with NarbeVoiceManager if available - ALWAYS use voice manager as source of truth
+	try {
+		if (window.NarbeVoiceManager) {
+			// Wait a bit for voice manager to fully initialize
+			setTimeout(function() {
+				try {
+					var vmSettings = window.NarbeVoiceManager.getSettings();
+					// Always use voice manager's TTS setting as source of truth
+					settings.tts = vmSettings.ttsEnabled;
+					// Sync voice index if available
+					if (typeof vmSettings.voiceIndex === 'number') {
+						settings.voiceIndex = vmSettings.voiceIndex;
+					}
+					console.log('Bowling: Synced with voice manager - TTS:', settings.tts, 'Voice:', settings.voiceIndex);
+					
+					// Update localStorage to match voice manager
+					try {
+						localStorage.setItem('benny_settings', JSON.stringify(settings));
+					} catch(e) {}
+				} catch(e) {
+					console.error('Bowling: Failed to sync with voice manager:', e);
+				}
+			}, 100);
+		} else {
+			console.warn('Bowling: Voice manager not available');
+		}
+	} catch(e) {
+		console.error('Bowling: Error accessing voice manager:', e);
+	}
 }
 
 function saveSettings() {
 	try {
 		localStorage.setItem('benny_settings', JSON.stringify(settings));
+		
+		// Sync TTS setting to voice manager
+		if (window.NarbeVoiceManager) {
+			try {
+				window.NarbeVoiceManager.updateSettings({ 
+					ttsEnabled: settings.tts,
+					voiceIndex: settings.voiceIndex 
+				});
+				console.log('Bowling: Updated voice manager - TTS:', settings.tts);
+			} catch(e) {
+				console.error('Bowling: Failed to update voice manager:', e);
+			}
+		}
 	} catch (e) {}
 }
 
@@ -1601,20 +1643,20 @@ function buildMenus() {
 	}
 
 	function getVoiceName() {
-		var list = getEnglishVoices();
-		if (!list.length) return 'Default (English)';
-		var idx = Math.min(settings.voiceIndex|0, list.length-1);
-		var v = list[idx];
-		return v.name || 'English Voice';
+		// Use unified voice manager for current voice and a short display name
+		if (window.NarbeVoiceManager) {
+			const current = window.NarbeVoiceManager.getCurrentVoice();
+			return window.NarbeVoiceManager.getVoiceDisplayName(current);
+		}
+		return 'Default';
 	}
 
 	function cycleVoice() {
-		if (!('speechSynthesis' in window)) return;
-		var list = getEnglishVoices();
-		if (!list || !list.length) return;
-		settings.voiceIndex = (settings.voiceIndex + 1) % list.length;
-		saveSettings();
-		speakText('Voice set to ' + getVoiceName());
+		if (!window.NarbeVoiceManager) return;
+		window.NarbeVoiceManager.cycleVoice();
+		var newVoice = window.NarbeVoiceManager.getCurrentVoice();
+		var displayName = window.NarbeVoiceManager.getVoiceDisplayName(newVoice);
+		speakText('Voice changed to ' + displayName);
 	}
 
 	function updateBallSwatch(el) {
@@ -1634,7 +1676,14 @@ function buildMenus() {
 		} catch(e) {}
 	}
 
-	var ttsRow = makeRow(()=>'TTS', ()=> settings.tts? 'ON':'OFF', ()=>{ settings.tts=!settings.tts; saveSettings(); applySettings(); ttsRow._update(); }, false);
+	var ttsRow = makeRow(()=>'TTS', ()=> window.NarbeVoiceManager ? (window.NarbeVoiceManager.getSettings().ttsEnabled ? 'ON':'OFF') : 'OFF', ()=>{ 
+		if (window.NarbeVoiceManager) {
+			window.NarbeVoiceManager.toggleTTS(); 
+			var newState = window.NarbeVoiceManager.getSettings().ttsEnabled;
+			speakText(newState ? 'TTS enabled' : 'TTS disabled');
+		}
+		ttsRow._update(); 
+	}, false);
 	var musicRow = makeRow(()=>'Music', ()=> settings.music? 'ON':'OFF', ()=>{ settings.music=!settings.music; saveSettings(); applySettings(); musicRow._update(); }, false);
 	var sfxRow = makeRow(()=>'Sound Effects', ()=> settings.sfx? 'ON':'OFF', ()=>{ settings.sfx=!settings.sfx; saveSettings(); SFX_ENABLED = !!settings.sfx; sfxRow._update(); }, false);
 	var voiceRow = makeRow(()=>'Voice', ()=> getVoiceName(), ()=>{ cycleVoice(); voiceRow._update(); }, false);
@@ -1643,6 +1692,15 @@ function buildMenus() {
 	function getThemeName(){ return THEMES.length ? THEMES[Math.abs(settings.themeIndex)%THEMES.length].name : 'Default'; }
 	function cycleTheme(){ settings.themeIndex = (settings.themeIndex + 1) % THEMES.length; saveSettings(); applyTheme(settings.themeIndex); try { var t = THEMES[Math.abs(settings.themeIndex)%THEMES.length]; if (t && t.name) speakText('Theme ' + t.name); } catch(e) {} }
 	var themeRow = makeRow(()=>'Alley Theme', ()=> getThemeName(), ()=>{ cycleTheme(); themeRow._update(); }, false);
+	// Subscribe to voice manager changes to keep labels in sync
+	try {
+		if (window.NarbeVoiceManager && typeof window.NarbeVoiceManager.onSettingsChange === 'function') {
+			window.NarbeVoiceManager.onSettingsChange(function(){
+				try { if (voiceRow && voiceRow._update) voiceRow._update(); } catch(e){}
+				try { if (ttsRow && ttsRow._update) ttsRow._update(); } catch(e){}
+			});
+		}
+	} catch(e) {}
 	// Initialize swatch/value to current selection
 	if (typeof ballRow._update === 'function') { ballRow._update(); }
 
@@ -1687,7 +1745,7 @@ function buildMenus() {
 	document.body.appendChild(gameOverDiv);
 
 	if ('speechSynthesis' in window) {
-		window.speechSynthesis.onvoiceschanged = ()=>{ voiceRow._update(); };
+		window.speechSynthesis.onvoiceschanged = ()=>{ if (voiceRow && typeof voiceRow._update === 'function') voiceRow._update(); };
 	}
 
 	applySettings();
@@ -2082,43 +2140,9 @@ function renderScoreboard(scores) {
 
 // ---------- Text-to-Speech (TTS) helpers ----------
 function speakText(text) {
-	try {
-		// Use shared voice manager if available
-		if (window.NarbeVoiceManager) {
-			// Sync TTS setting with voice manager
-			if (settings.tts && !window.NarbeVoiceManager.getSettings().ttsEnabled) {
-				window.NarbeVoiceManager.updateSettings({ ttsEnabled: true });
-			}
-			if (settings.tts) {
-				window.NarbeVoiceManager.speak(text);
-			}
-		} else {
-			// Fallback to basic TTS if voice manager not available
-			if (!('speechSynthesis' in window)) return;
-			if (!settings.tts) return;
-			window.speechSynthesis.cancel();
-			var u = new SpeechSynthesisUtterance(text);
-			u.rate = 1.0;
-			u.pitch = 1.0;
-			u.volume = 1.0;
-			window.speechSynthesis.speak(u);
-		}
-	} catch (e) {
-		console.error('TTS error:', e);
-		// Last resort fallback to basic TTS
-		try {
-			if (!('speechSynthesis' in window)) return;
-			if (!settings.tts) return;
-			window.speechSynthesis.cancel();
-			var u = new SpeechSynthesisUtterance(text);
-			u.rate = 1.0;
-			u.pitch = 1.0;
-			u.volume = 1.0;
-			window.speechSynthesis.speak(u);
-		} catch (e2) {
-			console.error('Fallback TTS error:', e2);
-		}
-	}
+	if (!window.NarbeVoiceManager) return;
+	if (!window.NarbeVoiceManager.getSettings().ttsEnabled) return;
+	window.NarbeVoiceManager.speak(text);
 }
 
 function getLatestThrowInfo(scores) {
