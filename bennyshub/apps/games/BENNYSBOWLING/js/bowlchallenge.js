@@ -931,7 +931,7 @@ function updateScene(dt) {
 	if (localPlayer && !localPlayer.physics.simulationActive
 			&& !pickingBall && !positioningBall && !rollingBall) {
 		var t = (typeof clock.getElapsedTime === 'function') ? clock.getElapsedTime() : 0.0;
-		var T = 5.0;
+		var T = 10.0;
 		var omega = 2.0 * Math.PI / T;
 		// Position oscillation when NOT in aiming mode
 		if (!aimingMode && spaceHeld) {
@@ -1432,7 +1432,7 @@ function onDocumentKeyUp(event) {
 			var now = (typeof clock.getElapsedTime === 'function') ? clock.getElapsedTime() : 0.0;
 			// Ensure aim angle is current at release moment
 			if (aimHeld) {
-				var T = 5.0; var omega = 2.0 * Math.PI / T; var tauAim = Math.max(0.0, now - aimStartTime);
+				var T = 10.0; var omega = 2.0 * Math.PI / T; var tauAim = Math.max(0.0, now - aimStartTime);
 				currentAimAngle = BALL_ANGLE_MAX * Math.sin(omega * tauAim + aimPhase);
 			}
 			var held = Math.max(0.0, now - chargeStartTime);
