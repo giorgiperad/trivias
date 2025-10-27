@@ -438,17 +438,20 @@ class MenuSystem {
             } else {
                 this.game.audioSystem.stopMusic();
             }
-            this.showSettingsMenu();
+            // Preserve current selection
+            this.showSettingsMenu(true);
             this.game.audioSystem.speak(this.game.audioSystem.settings.musicEnabled ? "Music enabled" : "Music disabled");
         } else if (option.includes('Sound Effects:')) {
             this.game.audioSystem.settings.soundEnabled = !this.game.audioSystem.settings.soundEnabled;
             this.game.audioSystem.save();
-            this.showSettingsMenu();
+            // Preserve current selection
+            this.showSettingsMenu(true);
             this.game.audioSystem.speak(this.game.audioSystem.settings.soundEnabled ? "Sound effects enabled" : "Sound effects disabled");
         } else if (option.includes('Text-to-Speech:')) {
             this.game.audioSystem.settings.ttsEnabled = !this.game.audioSystem.settings.ttsEnabled;
             this.game.audioSystem.save();
-            this.showSettingsMenu();
+            // Preserve current selection
+            this.showSettingsMenu(true);
             if (this.game.audioSystem.settings.ttsEnabled) {
                 this.game.audioSystem.speak("Text to speech enabled");
             }
@@ -458,7 +461,8 @@ class MenuSystem {
                 this.game.audioSystem.voiceManager.cycleVoice();
                 const currentVoice = this.game.audioSystem.voiceManager.getCurrentVoice();
                 const voiceName = this.game.audioSystem.voiceManager.getVoiceDisplayName(currentVoice);
-                this.showSettingsMenu();
+                // Preserve current selection
+                this.showSettingsMenu(true);
                 this.game.audioSystem.speak(`Voice changed to ${voiceName}`);
             } else {
                 // Fallback to old voice cycling
@@ -466,11 +470,14 @@ class MenuSystem {
                 const currentIndex = voices.indexOf(this.game.audioSystem.settings.voiceType);
                 this.game.audioSystem.settings.voiceType = voices[(currentIndex + 1) % voices.length];
                 this.game.audioSystem.save();
-                this.showSettingsMenu();
+                // Preserve current selection
+                this.showSettingsMenu(true);
                 this.game.audioSystem.speak(`Voice changed to ${this.game.audioSystem.settings.voiceType}`);
             }
         } else if (option === 'Next Track') {
             this.game.audioSystem.nextTrack();
+            // Preserve current selection
+            this.showSettingsMenu(true);
             this.game.audioSystem.speak("Next track");
         } else if (option === 'Reset Season') {
             // Show confirmation dialog instead of immediately resetting
@@ -553,9 +560,12 @@ class MenuSystem {
         this.game.audioSystem.speak("Choose game mode");
     }
 
-    showSettingsMenu() {
+    showSettingsMenu(preserveIndex = false) {
         const gameState = this.game.gameState;
         gameState.mode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
+        
+        // Preserve current index if requested
+        const prevIndex = (preserveIndex ? gameState.selectedIndex : 0);
         
         // Get current voice name for display
         let voiceDisplayName = 'DEFAULT';
@@ -575,7 +585,11 @@ class MenuSystem {
             'Reset Season',
             'Back'
         ];
-        gameState.selectedIndex = 0;
+        
+        // Keep selection on same item if valid, else default to 0
+        gameState.selectedIndex = (preserveIndex && prevIndex >= 0 && prevIndex < gameState.menuOptions.length)
+            ? prevIndex
+            : 0;
         
         this.drawSettingsMenu();
         this.game.audioSystem.speak("Settings menu");
@@ -632,5 +646,4 @@ class MenuSystem {
         
         this.drawMenuPanel(gameState.menuOptions, gameState.selectedIndex, 28);
     }
-
 }
