@@ -96,7 +96,9 @@ var settings = {
 	music: false,
 	sfx: true,
 	ballStyleIndex: 0,
-	themeIndex: 0
+	themeIndex: 0,
+	// Aimer color selection (0..5); default 2 = green
+	aimerColorIndex: 2
 };
 // TTS and voice settings now managed entirely by NarbeVoiceManager
 // Track if user has interacted (required for audio autoplay on HTTPS)
@@ -105,6 +107,16 @@ var userHasInteracted = false;
 // Ball skins: name + preview + apply function
 var BALL_SKINS = []; // will be filled by buildBallSkins()
 var THEMES = [];
+
+// Aimer color presets
+var AIM_COLORS = [
+	{ name: 'White',  hex: 0xffffff },
+	{ name: 'Blue',   hex: 0x3399ff },
+	{ name: 'Green',  hex: 0x00ff66 },
+	{ name: 'Yellow', hex: 0xffff66 },
+	{ name: 'Red',    hex: 0xff5555 },
+	{ name: 'Orange', hex: 0xffaa33 }
+];
 
 function buildThemes() {
 	// Helper to make a vertical gradient texture
@@ -1507,6 +1519,10 @@ function loadSettings() {
 			if (typeof obj.themeIndex === 'number') {
 				settings.themeIndex = obj.themeIndex | 0;
 			}
+			// Load aimer color if present (independent of themeIndex)
+			if (typeof obj.aimerColorIndex === 'number') {
+				settings.aimerColorIndex = obj.aimerColorIndex | 0;
+			}
 		}
 	} catch (e) {}
 	
@@ -1707,18 +1723,10 @@ function buildMenus() {
 	function getThemeName(){ return THEMES.length ? THEMES[Math.abs(settings.themeIndex)%THEMES.length].name : 'Default'; }
 	function cycleTheme(){ settings.themeIndex = (settings.themeIndex + 1) % THEMES.length; saveSettings(); applyTheme(settings.themeIndex); try { var t = THEMES[Math.abs(settings.themeIndex)%THEMES.length]; if (t && t.name) speakText('Theme ' + t.name); } catch(e) {} }
 	var themeRow = makeRow(()=>'Alley Theme', ()=> getThemeName(), ()=>{ cycleTheme(); themeRow._update(); }, false);
-	// Subscribe to voice manager changes to keep labels in sync
-	try {
-		if (window.NarbeVoiceManager && typeof window.NarbeVoiceManager.onSettingsChange === 'function') {
-			window.NarbeVoiceManager.onSettingsChange(function(){
-				try { if (voiceRow && voiceRow._update) voiceRow._update(); } catch(e){}
-				try { if (ttsRow && ttsRow._update) ttsRow._update(); } catch(e){}
-			});
-		}
-	} catch(e) {}
-	// Initialize swatch/value to current selection
-	if (typeof ballRow._update === 'function') { ballRow._update(); }
-
+	// Aimer Color row
+	function getAimerColorName(){ var c=AIM_COLORS[Math.abs(settings.aimerColorIndex)%AIM_COLORS.length]; return c?c.name:'Green'; }
+	function cycleAimerColor(){ settings.aimerColorIndex=(settings.aimerColorIndex+1)%AIM_COLORS.length; saveSettings(); applyAimerStyleToLocal(); try{ speakText && speakText('Aimer color ' + getAimerColorName()); }catch(e){} }
+	var aimerRow = makeRow(()=>'Aimer Color', ()=> getAimerColorName(), ()=>{ cycleAimerColor(); aimerRow._update(); }, false);
 	var closeRow = document.createElement('div');
 	closeRow.style = 'display:flex; justify-content:flex-end; margin-top:12px;';
 	var closeBtn = document.createElement('button'); closeBtn.textContent = 'Close'; closeBtn.style = 'padding:10px 14px; color:#00ff99; background:#000000; border:2px solid #00ff99; border-radius:8px; font-weight:800; letter-spacing:1px; cursor:pointer; box-shadow:0 0 10px #00ff99;';
@@ -1782,6 +1790,7 @@ function buildMenus() {
 		{ el: voiceRow, action: ()=> voiceRow.onclick() },
 		{ el: ballRow, action: ()=> ballRow.onclick() },
 		{ el: themeRow, action: ()=> themeRow.onclick() },
+		{ el: aimerRow, action: ()=> aimerRow.onclick() },
 		{ el: closeBtn, action: ()=> closeBtn.onclick() }
 	];
 	settingsFocusIndex = 0;
@@ -2018,6 +2027,8 @@ function applyBallColorToLocal() {
 function applyBallStyleToLocal() {
 	var p = getLocalPlayer(); if (!p) return;
 	applyBallStyle(p.ballMesh, settings.ballStyleIndex);
+	// Refresh aimer style as well
+	applyAimerStyleToLocal();
 }
 
 function applyBallStyle(ballMesh, styleIdx) {
@@ -2039,36 +2050,27 @@ function applyBallColor(ballMesh, colorIdx) {
 }
 
 function ensureAimHelper(player) {
-	if (player.aimHelper) {
-		return;
-	}
+	if (player.aimHelper) { return; }
 	var group = new THREE.Group();
-	var totalLen = LANE_LENGTH;
-	var headLen = 0.35; // bigger, more visible cone
-	var shaftLen = Math.max(0.1, totalLen - headLen);
-	var shaftRadius = 0.02; // thicker line
-	var color = 0x00ff66;
-
-	// Shaft (cylinder) along +Z by default after rotation
-	var shaftGeom = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLen, 12, 1, true);
-	var shaftMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9, depthTest: false });
-	var shaft = new THREE.Mesh(shaftGeom, shaftMat);
-	shaft.rotation.x = Math.PI / 2; // align Y-axis cylinder to Z-axis
-	shaft.position.z = -shaftLen * 0.5; // start at ball, extend toward -Z
-	group.add(shaft);
-
-	// Head (cone)
-	var headRadius = shaftRadius * 3.0;
-	var headGeom = new THREE.ConeGeometry(headRadius, headLen, 16, 1, true);
-	var headMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.95, depthTest: false });
-	var head = new THREE.Mesh(headGeom, headMat);
-	head.rotation.x = Math.PI / 2;
-	head.position.z = -(shaftLen + headLen * 0.5);
-	group.add(head);
-
-	// Keep refs for updates (optional)
-	group.userData = { shaft: shaft, head: head, shaftLen: shaftLen, headLen: headLen };
-
+	// Shorter length so it doesn’t reach pins
+	var totalLen = Math.max(3.0, LANE_LENGTH * 0.7);
+	var colHex = (AIM_COLORS[Math.abs(settings.aimerColorIndex)%AIM_COLORS.length]||AIM_COLORS[2]).hex;
+	var dashSize = 0.35, gapSize = 0.22, lineRadius = 0.045;
+	var segCount = Math.max(1, Math.floor(totalLen / (dashSize + gapSize)));
+	var segments = [];
+	for (var i = 0; i < segCount; i++) {
+		var cylGeo = new THREE.CylinderGeometry(lineRadius, lineRadius, dashSize, 14, 1, true);
+		var cylMat = new THREE.MeshBasicMaterial({ color: colHex, transparent: true, opacity: 0.7, depthTest: true });
+		var seg = new THREE.Mesh(cylGeo, cylMat);
+		seg.rotation.x = Math.PI / 2; // align along Z
+		var z0 = - (i * (dashSize + gapSize) + dashSize * 0.5);
+		seg.position.set(0, 0, z0);
+		segments.push(seg);
+		group.add(seg);
+	}
+	// Place below the ball so it renders under it
+	var yOffset = -Math.max(0.0, (typeof BALL_RADIUS === 'number' ? BALL_RADIUS : 0.12) * 0.9);
+	group.userData = { segments: segments, totalLen: totalLen, dashSize: dashSize, gapSize: gapSize, lineRadius: lineRadius, yOffset: yOffset };
 	player.ballMesh.parent.add(group);
 	player.aimHelper = group;
 	setAimHelperVisible(player, false);
@@ -2077,21 +2079,14 @@ function ensureAimHelper(player) {
 function setAimHelperVisible(player, visible) {
 	if (player && player.aimHelper) {
 		player.aimHelper.visible = !!visible;
-		// Ensure it renders on top for visibility
-		player.aimHelper.traverse(function (obj) {
-			if (obj.isMesh && obj.material) {
-				obj.renderOrder = 999;
-				obj.material.depthTest = false;
-			}
-		});
 	}
 }
 
 function updateAimHelper(player) {
 	if (!player || !player.aimHelper) return;
 	var ballPos = player.ballMesh.position;
-	player.aimHelper.position.set(ballPos.x, ballPos.y, ballPos.z);
-	// Rotate around Y by aim angle; helper already oriented along -Z from construction
+	var yOff = (player.aimHelper.userData && typeof player.aimHelper.userData.yOffset === 'number') ? player.aimHelper.userData.yOffset : -0.1;
+	player.aimHelper.position.set(ballPos.x, ballPos.y + yOff, ballPos.z);
 	player.aimHelper.rotation.set(0, currentAimAngle, 0);
 }
 
