@@ -2000,7 +2000,7 @@ function showGameOver(finalScore) {
 		if (pauseUIButton) pauseUIButton.style.display = 'none';
 		if (gameOverDiv) gameOverDiv.style.display = 'flex';
 		// Return to main menu after a short delay
-		setTimeout(function(){ returnToMenu(); }, 3500);
+		setTimeout(function(){ returnToMenu(); }, 7500);
 	} catch(e) { returnToMenu(); }
 }
 
