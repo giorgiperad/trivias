@@ -28,6 +28,9 @@ var trackProtoMesh, ballProtoMesh, pinProtoMesh;
 var players, imitations, scoresDiv;
 var chargeBar, chargeFill; // UI for charge power
 
+// Add concise help tips overlay
+var helpTipsDiv = null;
+
 var imitationPlayerId = 0;
 var pickingBall = false;
 var positioningBall = false;
@@ -590,6 +593,26 @@ function init() {
 	chargeFill.style = "height: 100%; width: 0%; background: linear-gradient(90deg, #33cc33, #00ff99); box-shadow: 0 0 8px #00ff99;";
 	chargeBar.appendChild(chargeFill);
 	container.appendChild(chargeBar);
+
+	// Help tips (hidden in menus/paused)
+	helpTipsDiv = document.createElement('div');
+	helpTipsDiv.style = [
+		'position: fixed',
+		'left: 50%','bottom: 12px','transform: translateX(-50%)',
+		'z-index: 1400','pointer-events: none',
+		'padding: 8px 12px','border-radius: 10px',
+		'background: rgba(0,0,0,0.55)','color: #eaffff',
+		'font: 700 11px "Courier New", monospace',
+		'letter-spacing: 0.5px','text-align: center',
+		'box-shadow: 0 0 10px rgba(0,255,153,0.35)',
+		'border: 1px solid rgba(0,255,153,0.35)',
+		'display: none'
+	].join(';');
+	helpTipsDiv.innerHTML = [
+		'<div>Drag ball to position; drag forward to throw.</div>',
+		'<div>Keyboard: Space = move, Enter = aim, Space = set angle, Hold Enter = charge, release to bowl.</div>'
+	].join('');
+	container.appendChild(helpTipsDiv);
 
 	// Pause UI Button (mouse users)
 	pauseUIButton = document.createElement('button');
@@ -1902,6 +1925,7 @@ function openPauseMenu() {
 	// reset scanning timers for pause menu
 	pauseScanHeld = false; pauseFocusIndex = -1;
 	updatePauseUIButtonVisibility();
+	updateHelpTipsVisibility();
 }
 
 function resumeGame() {
@@ -1911,6 +1935,7 @@ function resumeGame() {
 	// reset scanning states
 	pauseScanHeld = false; menuScanHeld = false; settingsScanHeld = false;
 	updatePauseUIButtonVisibility();
+	updateHelpTipsVisibility();
 }
 
 function applySettings() {
@@ -1938,6 +1963,14 @@ function updatePauseUIButtonVisibility() {
 	try {
 		if (!pauseUIButton) return;
 		pauseUIButton.style.display = (gameState === 'playing') ? 'block' : 'none';
+	} catch(e){}
+}
+
+// Toggle help tips visibility based on current game state
+function updateHelpTipsVisibility() {
+	try {
+		if (!helpTipsDiv) return;
+		helpTipsDiv.style.display = (gameState === 'playing') ? 'block' : 'none';
 	} catch(e){}
 }
 
@@ -1973,6 +2006,7 @@ function startGame() {
 	menuScanHeld = false; settingsScanHeld = false;
 	menuFocusIndex = -1; settingsFocusIndex = 0;
 	updatePauseUIButtonVisibility();
+	updateHelpTipsVisibility();
 }
 
 function returnToMenu() {
@@ -1986,6 +2020,7 @@ function returnToMenu() {
 	if (gameOverDiv) gameOverDiv.style.display = 'none';
 	showMainMenu();
 	updatePauseUIButtonVisibility();
+	updateHelpTipsVisibility();
 	// Stop ambient loop
 	stopAmbient();
 }
@@ -1999,6 +2034,7 @@ function showGameOver(finalScore) {
 		gameState = 'menu';
 		if (pauseUIButton) pauseUIButton.style.display = 'none';
 		if (gameOverDiv) gameOverDiv.style.display = 'flex';
+		updateHelpTipsVisibility();
 		// Return to main menu after a short delay
 		setTimeout(function(){ returnToMenu(); }, 7500);
 	} catch(e) { returnToMenu(); }
