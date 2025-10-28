@@ -507,7 +507,7 @@ function buildBallSkins() {
 }
 // Menu navigation state
 var mainMenuItems = [];          // array of elements
-var menuFocusIndex = 0;
+var menuFocusIndex = -1;
 var menuScanHeld = false;
 var menuHoldStart = 0.0;
 var menuLastBackStep = 0.0;
@@ -518,7 +518,7 @@ var settingsHoldStart = 0.0;
 var settingsLastBackStep = 0.0;
 // Pause menu scan state
 var pauseMenuItems = [];
-var pauseFocusIndex = 0;
+var pauseFocusIndex = -1;
 var pauseScanHeld = false;
 var pauseHoldStart = 0.0;
 var pauseLastBackStep = 0.0;
@@ -1271,11 +1271,7 @@ function onDocumentKeyDown(event) {
 				}
 				return;
 			}
-			if (event.code === 'Enter') {
-				event.preventDefault();
-				handleSettingsEnter();
-				return;
-			}
+			// Remove Enter handling from keydown for settings
 			return; // ignore other keys in settings
 		} else {
 			// Primary menu for this state (main or pause)
@@ -1296,13 +1292,7 @@ function onDocumentKeyDown(event) {
 				}
 				return;
 			}
-			if (event.code === 'Enter') {
-				event.preventDefault();
-				// Prevent key-repeat from immediately activating default choice when a menu just opened
-				if (event.repeat) return;
-				if (gameState === 'menu') handleMainMenuEnter(); else handlePauseMenuEnter();
-				return;
-			}
+			// Remove Enter handling from keydown for menus
 			return;
 		}
 	}
@@ -1385,6 +1375,11 @@ function onDocumentKeyUp(event) {
 				settingsScanHeld = false;
 				return;
 			}
+			if (event.code === 'Enter') {
+				event.preventDefault();
+				handleSettingsEnter();
+				return;
+			}
 			return;
 		} else {
 			if (event.code === 'Space') {
@@ -1405,6 +1400,13 @@ function onDocumentKeyUp(event) {
 					}
 					pauseScanHeld = false;
 				}
+				return;
+			}
+			if (event.code === 'Enter') {
+				event.preventDefault();
+				// Prevent key-repeat from immediately activating default choice when a menu just opened
+				if (event.repeat) return;
+				if (gameState === 'menu') handleMainMenuEnter(); else handlePauseMenuEnter();
 				return;
 			}
 			return;
@@ -1469,6 +1471,7 @@ function onDocumentKeyUp(event) {
 }
 
 function handleMainMenuEnter() {
+	if (menuFocusIndex < 0) return; // No selection yet
 	var idx = menuFocusIndex % mainMenuItems.length;
 	if (idx === 0) { // Play Game
 		startGame();
@@ -1481,6 +1484,7 @@ function handleMainMenuEnter() {
 }
 
 function handlePauseMenuEnter() {
+	if (pauseFocusIndex < 0) return; // No selection yet
 	var idx = pauseFocusIndex % pauseMenuItems.length;
 	if (idx === 0) { // Continue Game
 		resumeGame();
@@ -1777,11 +1781,12 @@ function buildMenus() {
 
 	// Collect items for keyboard scanning (same order as rendered)
 	mainMenuItems = [playBtn, settingsBtn, exitBtn];
-	menuFocusIndex = 0;
-	applyMenuFocus();
+	menuFocusIndex = -1;
+	// Don't apply focus initially - user must press spacebar first
 
 	pauseMenuItems = [continueBtn, psettingsBtn, pmenuBtn];
-	pauseFocusIndex = 0;
+	pauseFocusIndex = -1;
+	// Don't apply focus initially - user must press spacebar first
 
 	settingsItems = [
 		{ el: ttsRow, action: ()=> ttsRow.onclick() },
@@ -1798,31 +1803,36 @@ function buildMenus() {
 
 function applyMenuFocus() {
 	mainMenuItems.forEach((el, idx) => {
-		var focused = (idx === menuFocusIndex);
+		var focused = (idx === menuFocusIndex && menuFocusIndex >= 0);
 		el.style.outline = focused ? '3px solid #00ff99' : 'none';
 		el.style.boxShadow = focused ? '0 0 16px #00ff99' : '0 0 10px #00ff99';
 		el.style.background = focused ? '#00ff99' : '#000000';
 		el.style.color = focused ? '#000000' : '#00ff99';
 	});
-	// TTS announce focused item
-	try {
-		var label = mainMenuItems[menuFocusIndex] && mainMenuItems[menuFocusIndex].textContent;
-		if (label) speakText(label);
-	} catch(e) {}
+	// TTS announce focused item only if something is selected
+	if (menuFocusIndex >= 0) {
+		try {
+			var label = mainMenuItems[menuFocusIndex] && mainMenuItems[menuFocusIndex].textContent;
+			if (label) speakText(label);
+		} catch(e) {}
+	}
 }
 
 function applyPauseFocus() {
 	pauseMenuItems.forEach((el, idx) => {
-		var focused = (idx === pauseFocusIndex);
+		var focused = (idx === pauseFocusIndex && pauseFocusIndex >= 0);
 		el.style.outline = focused ? '3px solid #00ff99' : 'none';
 		el.style.boxShadow = focused ? '0 0 16px #00ff99' : '0 0 10px #00ff99';
 		el.style.background = focused ? '#00ff99' : '#000000';
 		el.style.color = focused ? '#000000' : '#00ff99';
 	});
-	try {
-		var label = pauseMenuItems[pauseFocusIndex] && pauseMenuItems[pauseFocusIndex].textContent;
-		if (label) speakText(label);
-	} catch(e) {}
+	// TTS announce focused item only if something is selected
+	if (pauseFocusIndex >= 0) {
+		try {
+			var label = pauseMenuItems[pauseFocusIndex] && pauseMenuItems[pauseFocusIndex].textContent;
+			if (label) speakText(label);
+		} catch(e) {}
+	}
 }
 
 function applySettingsFocus() {
@@ -1890,7 +1900,7 @@ function openPauseMenu() {
 	gameState = 'paused';
 	showPauseMenu();
 	// reset scanning timers for pause menu
-	pauseScanHeld = false; pauseFocusIndex = 0; applyPauseFocus();
+	pauseScanHeld = false; pauseFocusIndex = -1;
 	updatePauseUIButtonVisibility();
 }
 
@@ -1961,7 +1971,7 @@ function startGame() {
 	}
 	// Reset menu scanning states
 	menuScanHeld = false; settingsScanHeld = false;
-	menuFocusIndex = 0; settingsFocusIndex = 0;
+	menuFocusIndex = -1; settingsFocusIndex = 0;
 	updatePauseUIButtonVisibility();
 }
 
@@ -2088,6 +2098,24 @@ function updateAimHelper(player) {
 	var yOff = (player.aimHelper.userData && typeof player.aimHelper.userData.yOffset === 'number') ? player.aimHelper.userData.yOffset : -0.1;
 	player.aimHelper.position.set(ballPos.x, ballPos.y + yOff, ballPos.z);
 	player.aimHelper.rotation.set(0, currentAimAngle, 0);
+}
+
+function applyAimerStyleToLocal() {
+	var p = getLocalPlayer(); 
+	if (!p || !p.aimHelper) return;
+	
+	// Get the new color from settings
+	var colHex = (AIM_COLORS[Math.abs(settings.aimerColorIndex)%AIM_COLORS.length]||AIM_COLORS[2]).hex;
+	
+	// Update all the aim helper segments with the new color
+	if (p.aimHelper.userData && p.aimHelper.userData.segments) {
+		p.aimHelper.userData.segments.forEach(function(seg) {
+			if (seg && seg.material) {
+				seg.material.color.setHex(colHex);
+				seg.material.needsUpdate = true;
+			}
+		});
+	}
 }
 
 function renderScoreboard(scores) {
