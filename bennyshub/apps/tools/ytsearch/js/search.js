@@ -1,72 +1,65 @@
-// TurnstileTokenManager - Handles race conditions and serialization
+// Simplified Turnstile Token Manager
 const TurnstileTokenManager = (() => {
-    let widgetId = null;
-    let inFlight = null; // Promise for an in-progress token
-    let ready = false;
-
-    function setWidgetId(id) { 
-        widgetId = id; 
-        ready = !!id; 
-        console.log('🔒 Turnstile widget ID set:', id ? 'YES' : 'NO');
-    }
-
     async function getFresh() {
-        if (!ready || !widgetId) {
-            // Try to read widget ID from the element
-            const el = document.querySelector(".cf-turnstile");
-            if (el && el.dataset.widgetId) { 
-                widgetId = el.dataset.widgetId; 
-                ready = true; 
-            }
-        }
-        if (!ready || !window.turnstile) {
-            throw new Error("Turnstile widget not ready");
-        }
-
-        // Ensure only one execute runs at a time
-        if (!inFlight) {
-            inFlight = new Promise((resolve, reject) => {
-                try { 
-                    console.log('🔒 Resetting Turnstile widget before execute');
-                    window.turnstile.reset(widgetId); 
-                } catch (e) {
-                    console.log('Reset error (non-fatal):', e);
+        // Wait for Turnstile script to be ready
+        await new Promise((resolve, reject) => {
+            const ready = () => window.turnstile && typeof window.turnstile.ready === 'function';
+            if (ready()) return window.turnstile.ready(resolve);
+            const t = setTimeout(() => reject(new Error('Turnstile script not loaded')), 8000);
+            window.addEventListener('load', () => {
+                if (ready()) {
+                    clearTimeout(t);
+                    window.turnstile.ready(resolve);
                 }
-                
-                console.log('🔒 Executing Turnstile widget...');
-                window.turnstile.execute(widgetId, {
-                    action: "search",
-                    callback: (token) => { 
-                        console.log('🔒 Turnstile execute completed with token');
-                        inFlight = null; 
-                        resolve(token); 
-                    },
-                    "error-callback": (err) => { 
-                        console.warn('🔒 Turnstile execute failed:', err);
-                        inFlight = null; 
-                        reject(err || new Error("Turnstile execute failed")); 
-                    }
-                });
+            }, { once: true });
+        });
+
+        // Ensure widget is rendered
+        if (!window.__ts?.widgetId) {
+            const el = document.getElementById('turnstile-widget');
+            if (!el) throw new Error('Turnstile mount not found');
+            window.__ts = window.__ts || { waiters: [] };
+            window.__ts.widgetId = window.turnstile.render(el, {
+                sitekey: el.dataset.sitekey,
+                size: 'invisible',
+                callback: window.onTurnstileToken,
+                'expired-callback': window.onTurnstileExpired,
+                'error-callback': window.onTurnstileError,
             });
         }
-        return inFlight;
+
+        // Use existing token if available
+        if (window.turnstile.getResponse) {
+            const existing = window.turnstile.getResponse(window.__ts.widgetId);
+            if (existing) return existing;
+        }
+
+        // Execute and wait for token via the global callback
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Token timeout')), 8000);
+            window.__ts.waiters = window.__ts.waiters || [];
+            window.__ts.waiters.push((token) => {
+                clearTimeout(timeout);
+                resolve(token);
+            });
+            window.turnstile.execute(window.__ts.widgetId);
+        });
     }
 
     async function getForRequest() {
-        // Always get a fresh token right before the request
         return getFresh();
     }
 
     async function retryToken() {
         try { 
-            if (widgetId) window.turnstile.reset(widgetId); 
+            if (window.__ts?.widgetId) window.turnstile.reset(window.__ts.widgetId); 
         } catch (e) {
             console.log('Reset error during retry (non-fatal):', e);
         }
         return getFresh();
     }
 
-    return { setWidgetId, getForRequest, retryToken };
+    return { getForRequest, retryToken };
 })();
 
 // Global callback for Turnstile widget (referenced in HTML)
@@ -120,39 +113,7 @@ class SearchManager {
         }
         
         console.log('✅ Found HTML Turnstile widget container');
-        
-        // Set up the widget ID when Turnstile loads
-        const setupWidget = () => {
-            const el = document.querySelector(".cf-turnstile");
-            if (el && el.dataset.widgetId) {
-                TurnstileTokenManager.setWidgetId(el.dataset.widgetId);
-                this.turnstileReady = true;
-            } else if (window.turnstile) {
-                // Widget ready but ID not set yet, wait a bit
-                setTimeout(setupWidget, 100);
-            }
-        };
-        
-        // Check if Turnstile script is loaded
-        if (window.turnstile) {
-            console.log('✅ Turnstile script already loaded');
-            setupWidget();
-        } else {
-            // Wait for Turnstile script to load
-            let attempts = 0;
-            const checkTurnstile = setInterval(() => {
-                attempts++;
-                if (window.turnstile) {
-                    clearInterval(checkTurnstile);
-                    console.log('✅ Turnstile script loaded after waiting');
-                    setupWidget();
-                } else if (attempts > 50) {
-                    clearInterval(checkTurnstile);
-                    console.warn('⚠️ Turnstile script failed to load');
-                    this.turnstileReady = false;
-                }
-            }, 100);
-        }
+        this.turnstileReady = true;
     }
 
     _setToken(token) {
@@ -163,7 +124,6 @@ class SearchManager {
 
     _clearToken() {
         this.htmlTurnstileToken = null;
-        // Token manager handles reset internally
     }
 
     clearTurnstileToken() {
@@ -271,6 +231,7 @@ class SearchManager {
 
             const headers = { 
                 'Accept': 'application/json',
+                'X-App-Key': 'banana-dragon-sky-88',
                 // Always send desktop-like headers to avoid mobile API restrictions
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept-Language': 'en-US,en;q=0.9',
@@ -304,23 +265,83 @@ class SearchManager {
             return res;
         };
 
-        // 1) Get fresh token before the request
+        // 1) Try to get a token using multiple methods
         let token = null;
-        try {
-            token = await TurnstileTokenManager.getForRequest();
-            console.log('🔒 Got fresh token for request');
-        } catch (error) {
-            console.warn('⚠️ Could not get Turnstile token:', error);
+        
+        // Method 1: Check if we have a stored token
+        if (this.htmlTurnstileToken) {
+            token = this.htmlTurnstileToken;
+            console.log('🔒 Using stored token from callback');
+            this.htmlTurnstileToken = null; // Use once
+        }
+        
+        // Method 2: Try to get existing response from widget
+        if (!token && window.turnstile && window.__ts?.widgetId) {
+            try {
+                token = window.turnstile.getResponse(window.__ts.widgetId);
+                if (token) {
+                    console.log('🔒 Got existing token from widget');
+                }
+            } catch (e) {
+                console.log('Could not get existing token:', e);
+            }
+        }
+        
+        // Method 3: Execute widget and wait for new token
+        if (!token && window.turnstile && window.__ts?.widgetId) {
+            try {
+                console.log('🔒 Executing widget for fresh token...');
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Token timeout')), 10000);
+                    
+                    // Add ourselves to the waiters list
+                    if (!window.__ts.waiters) window.__ts.waiters = [];
+                    window.__ts.waiters.push((newToken) => {
+                        clearTimeout(timeout);
+                        token = newToken;
+                        console.log('🔒 Got fresh token from execute');
+                        resolve();
+                    });
+                    
+                    // Execute the widget
+                    window.turnstile.execute(window.__ts.widgetId);
+                });
+            } catch (error) {
+                console.warn('⚠️ Could not get fresh token:', error);
+            }
         }
 
         let res = await doRequest(token);
 
-        // 2) On 401, reset and retry ONCE with a brand new token
+        // 2) On 401, reset widget and try one more time
         if (res.status === 401) {
-            console.warn('🔁 Token rejected (401), getting new token and retrying...');
+            console.warn('🔁 Token rejected (401), resetting widget and retrying...');
             try {
-                token = await TurnstileTokenManager.retryToken();
-                console.log('🔒 Got retry token');
+                // Reset the widget
+                if (window.turnstile && window.__ts?.widgetId) {
+                    window.turnstile.reset(window.__ts.widgetId);
+                }
+                
+                // Wait a moment then try to get a new token
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                token = null;
+                if (window.turnstile && window.__ts?.widgetId) {
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('Retry token timeout')), 10000);
+                        
+                        if (!window.__ts.waiters) window.__ts.waiters = [];
+                        window.__ts.waiters.push((newToken) => {
+                            clearTimeout(timeout);
+                            token = newToken;
+                            console.log('🔒 Got retry token');
+                            resolve();
+                        });
+                        
+                        window.turnstile.execute(window.__ts.widgetId);
+                    });
+                }
+                
                 res = await doRequest(token);
             } catch (error) {
                 console.warn('⚠️ Could not get retry token:', error);
