@@ -1,3 +1,74 @@
+// TurnstileTokenManager - Handles race conditions and serialization
+const TurnstileTokenManager = (() => {
+    let widgetId = null;
+    let inFlight = null; // Promise for an in-progress token
+    let ready = false;
+
+    function setWidgetId(id) { 
+        widgetId = id; 
+        ready = !!id; 
+        console.log('🔒 Turnstile widget ID set:', id ? 'YES' : 'NO');
+    }
+
+    async function getFresh() {
+        if (!ready || !widgetId) {
+            // Try to read widget ID from the element
+            const el = document.querySelector(".cf-turnstile");
+            if (el && el.dataset.widgetId) { 
+                widgetId = el.dataset.widgetId; 
+                ready = true; 
+            }
+        }
+        if (!ready || !window.turnstile) {
+            throw new Error("Turnstile widget not ready");
+        }
+
+        // Ensure only one execute runs at a time
+        if (!inFlight) {
+            inFlight = new Promise((resolve, reject) => {
+                try { 
+                    console.log('🔒 Resetting Turnstile widget before execute');
+                    window.turnstile.reset(widgetId); 
+                } catch (e) {
+                    console.log('Reset error (non-fatal):', e);
+                }
+                
+                console.log('🔒 Executing Turnstile widget...');
+                window.turnstile.execute(widgetId, {
+                    action: "search",
+                    callback: (token) => { 
+                        console.log('🔒 Turnstile execute completed with token');
+                        inFlight = null; 
+                        resolve(token); 
+                    },
+                    "error-callback": (err) => { 
+                        console.warn('🔒 Turnstile execute failed:', err);
+                        inFlight = null; 
+                        reject(err || new Error("Turnstile execute failed")); 
+                    }
+                });
+            });
+        }
+        return inFlight;
+    }
+
+    async function getForRequest() {
+        // Always get a fresh token right before the request
+        return getFresh();
+    }
+
+    async function retryToken() {
+        try { 
+            if (widgetId) window.turnstile.reset(widgetId); 
+        } catch (e) {
+            console.log('Reset error during retry (non-fatal):', e);
+        }
+        return getFresh();
+    }
+
+    return { setWidgetId, getForRequest, retryToken };
+})();
+
 // Global callback for Turnstile widget (referenced in HTML)
 window.onTurnstileReady = function(token) {
     console.log('🔒 HTML Turnstile widget ready with token:', token ? 'YES' : 'NO');
@@ -23,7 +94,6 @@ class SearchManager {
         // Turnstile security with serialization
         this.turnstileReady = false;
         this.htmlTurnstileToken = null;
-        this._execInFlight = null; // Promise when execute() is running
         
         // Autoplay state
         this.autoplayEnabled = true;
@@ -51,10 +121,22 @@ class SearchManager {
         
         console.log('✅ Found HTML Turnstile widget container');
         
+        // Set up the widget ID when Turnstile loads
+        const setupWidget = () => {
+            const el = document.querySelector(".cf-turnstile");
+            if (el && el.dataset.widgetId) {
+                TurnstileTokenManager.setWidgetId(el.dataset.widgetId);
+                this.turnstileReady = true;
+            } else if (window.turnstile) {
+                // Widget ready but ID not set yet, wait a bit
+                setTimeout(setupWidget, 100);
+            }
+        };
+        
         // Check if Turnstile script is loaded
         if (window.turnstile) {
             console.log('✅ Turnstile script already loaded');
-            this.turnstileReady = true;
+            setupWidget();
         } else {
             // Wait for Turnstile script to load
             let attempts = 0;
@@ -63,7 +145,7 @@ class SearchManager {
                 if (window.turnstile) {
                     clearInterval(checkTurnstile);
                     console.log('✅ Turnstile script loaded after waiting');
-                    this.turnstileReady = true;
+                    setupWidget();
                 } else if (attempts > 50) {
                     clearInterval(checkTurnstile);
                     console.warn('⚠️ Turnstile script failed to load');
@@ -81,11 +163,7 @@ class SearchManager {
 
     _clearToken() {
         this.htmlTurnstileToken = null;
-        try {
-            if (window.turnstile) window.turnstile.reset('#turnstile-widget');
-        } catch (e) {
-            console.log('Error resetting widget:', e);
-        }
+        // Token manager handles reset internally
     }
 
     clearTurnstileToken() {
@@ -155,7 +233,7 @@ class SearchManager {
             console.log(`🔍 Starting YouTube search for: "${query}"`);
             this.showLoading('Searching videos');
             
-            // Use new token flow - no need to pass token
+            // Use new token flow
             const results = await this.searchCloudflareShorts(query);
             
             if (results.length > 0) {
@@ -181,13 +259,13 @@ class SearchManager {
         }
     }
 
-    // Cloudflare Worker Shorts Search with mobile-safe headers and token refresh
+    // Cloudflare Worker Shorts Search with proper token management
     async searchCloudflareShorts(query) {
-        const doRequest = async (token) => {
-            const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
-            console.log('📹 Searching videos via Cloudflare Worker...');
-            console.log('🔗 Worker request URL:', url);
+        const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
+        console.log('📹 Searching videos via Cloudflare Worker...');
+        console.log('🔗 Worker request URL:', url);
 
+        const doRequest = async (token) => {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.searchTimeout);
 
@@ -205,7 +283,12 @@ class SearchManager {
                 'Sec-Fetch-Site': 'cross-site'
             };
             
-            if (token) headers['cf-turnstile-response'] = token;
+            if (token) {
+                headers['cf-turnstile-response'] = token;
+                console.log('🔒 Sending request with Turnstile token');
+            } else {
+                console.warn('⚠️ No Turnstile token available for request');
+            }
 
             const t0 = Date.now();
             const res = await fetch(url, { 
@@ -221,28 +304,39 @@ class SearchManager {
             return res;
         };
 
-        // Always try to have a token
-        let token = await this.getTsToken();
-        if (!token) console.warn('⚠️ No Turnstile token available yet');
+        // 1) Get fresh token before the request
+        let token = null;
+        try {
+            token = await TurnstileTokenManager.getForRequest();
+            console.log('🔒 Got fresh token for request');
+        } catch (error) {
+            console.warn('⚠️ Could not get Turnstile token:', error);
+        }
 
         let res = await doRequest(token);
 
-        // If the Worker says no, fetch a brand-new token and retry once
-        if (res.status === 401 || res.status === 403) {
-            console.warn('🔁 Token rejected, refreshing and retrying...');
-            this.clearTurnstileToken();
-            token = await this.getTsToken();
-            res = await doRequest(token);
+        // 2) On 401, reset and retry ONCE with a brand new token
+        if (res.status === 401) {
+            console.warn('🔁 Token rejected (401), getting new token and retrying...');
+            try {
+                token = await TurnstileTokenManager.retryToken();
+                console.log('🔒 Got retry token');
+                res = await doRequest(token);
+            } catch (error) {
+                console.warn('⚠️ Could not get retry token:', error);
+                // Continue with the 401 response to handle below
+            }
         }
-
-        // After the cycle, clear so we never reuse single-use tokens
-        this.clearTurnstileToken();
 
         if (!res.ok) {
             const txt = await res.text().catch(() => '');
             console.error('❌ Worker API error:', res.status, txt);
-            if (res.status === 401 || res.status === 403) throw new Error('Access denied - please refresh the page');
-            if (res.status >= 500) throw new Error('Search service error - try again');
+            if (res.status === 401 || res.status === 403) {
+                throw new Error('Access denied - please refresh the page');
+            }
+            if (res.status >= 500) {
+                throw new Error('Search service error - try again');
+            }
             throw new Error(`Search failed with ${res.status}`);
         }
 
@@ -262,15 +356,15 @@ class SearchManager {
         }));
     }
 
-    // Load YouTube API once and cache it
+    // Load YouTube API if not already loaded
     async loadYouTubeAPI() {
         return new Promise((resolve) => {
-            if (window.YT && YT.Player) {
-                console.log('YouTube API already loaded');
-                return resolve();
+            // If API is already loaded and ready
+            if (window.YT && window.YT.Player) {
+                console.log('YouTube API already loaded and ready');
+                resolve();
+                return;
             }
-            
-            console.log('Loading YouTube API...');
             
             // Set up the callback before loading the script
             window.onYouTubeIframeAPIReady = () => {
