@@ -29,11 +29,20 @@
             if (window.searchManager && typeof window.searchManager._setToken === 'function') {
                 window.searchManager._setToken(token);
             }
+            // Resolve any waiters waiting for a token
+            if (window.__ts && Array.isArray(window.__ts.waiters)) {
+                const waiters = window.__ts.waiters.splice(0);
+                waiters.forEach(fn => { try { fn(token); } catch {} });
+            }
         };
         window.onTurnstileExpired = () => {
             console.log('⌛ Token expired');
             if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
                 window.searchManager._clearToken();
+            }
+            // Proactively fetch a new token
+            if (window.__ts?.widgetId && window.turnstile?.execute) {
+                window.turnstile.execute(window.__ts.widgetId);
             }
         };
         window.onTurnstileError = (err) => {
@@ -42,6 +51,43 @@
                 window.searchManager._clearToken();
             }
         };
+        </script>
+
+        <script>
+        (function initTurnstile() {
+            window.__ts = { ready: false, widgetId: null, waiters: [] };
+
+            function renderAndExecute() {
+                const mount = document.getElementById('turnstile-widget');
+                if (!mount || !window.turnstile) return;
+
+                if (!window.__ts.widgetId) {
+                    window.__ts.widgetId = window.turnstile.render(mount, {
+                        sitekey: mount.dataset.sitekey,
+                        size: 'invisible',
+                        callback: window.onTurnstileToken,
+                        'expired-callback': window.onTurnstileExpired,
+                        'error-callback': window.onTurnstileError,
+                    });
+                }
+                window.__ts.ready = true;
+                // Kick off first token fetch
+                if (window.turnstile.execute) {
+                    window.turnstile.execute(window.__ts.widgetId);
+                }
+            }
+
+            // Wait until Turnstile JS is ready
+            if (window.turnstile?.ready) {
+                window.turnstile.ready(renderAndExecute);
+            } else {
+                window.addEventListener('load', () => {
+                    if (window.turnstile?.ready) {
+                        window.turnstile.ready(renderAndExecute);
+                    }
+                });
+            }
+        })();
         </script>
 
         <!-- Main Keyboard Interface -->
