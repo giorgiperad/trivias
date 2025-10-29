@@ -1,11 +1,11 @@
 // Robust Turnstile initialization and token management
-// Singleton state
+// Singleton state with correct sitekey
 const TS_STATE = {
   scriptLoaded: false,
   scriptPromise: null,
   widgetId: null,
   widgetReadyPromise: null,
-  sitekey: "0x4AAAAAAAhdJV0Zqhyv_kTz",  // Your production sitekey
+  sitekey: "0x4AAAAAAB7n5nabkWl0WOPa",  // Correct production sitekey for narbehouse.github.io
 };
 
 // 1) Load the Turnstile script exactly once
@@ -31,115 +31,225 @@ function loadTurnstileScript() {
   return TS_STATE.scriptPromise;
 }
 
-// 2) Render the widget programmatically and capture widgetId
-async function renderTurnstileWidget() {
-  await loadTurnstileScript();
-  if (TS_STATE.widgetReadyPromise) return TS_STATE.widgetReadyPromise;
-
-  TS_STATE.widgetReadyPromise = new Promise((resolve, reject) => {
-    try {
-      // Look for existing container or create one
-      let mount = document.getElementById("turnstile-widget") || document.getElementById("ts-container");
-      if (!mount) {
-        // Create container if it doesn't exist
-        mount = document.createElement("div");
-        mount.id = "ts-container";
-        mount.style.display = "none"; // Hidden since we use invisible widget
-        document.body.appendChild(mount);
-      }
-
-      // Ensure the mount is empty (avoid double render on SPA routes)
-      mount.innerHTML = "";
-
-      console.log('🔒 Rendering Turnstile widget programmatically...');
-      
-      // Render invisible widget so we can execute programmatically
-      const wid = window.turnstile.render(mount, {
-        sitekey: TS_STATE.sitekey,
-        size: "invisible",
-        callback: () => {
-          // Callback only fires after execute; we just need widget ready now.
-          console.log('🔒 Turnstile widget callback fired');
-        },
-        "error-callback": (e) => {
-          console.warn("🔒 Turnstile widget error", e);
-        }
-      });
-
-      if (!wid) return reject(new Error("Failed to render Turnstile widget"));
-      TS_STATE.widgetId = wid;
-      console.log('🔒 Turnstile widget rendered with ID:', wid);
-
-      // A tiny ready delay so render settles before first execute
-      setTimeout(resolve, 0);
-    } catch (e) {
-      reject(e);
-    }
-  });
-
-  return TS_STATE.widgetReadyPromise;
-}
-
-// 3) Token manager that guarantees readiness and serializes execute()
+// HTML Widget Token Manager - Works with existing HTML Turnstile widget
 const TurnstileTokenManager = (() => {
-  let inFlight = null;
+    let currentToken = null;
+    let inFlight = null;
+    let widgetId = null;
+    let ready = false;
+    let initPromise = null;
 
-  async function ensureReady() {
-    await renderTurnstileWidget();
-    if (!TS_STATE.widgetId) throw new Error("Turnstile widget not ready");
-  }
-
-  async function getFresh() {
-    await ensureReady();
-    if (!inFlight) {
-      inFlight = new Promise((resolve, reject) => {
-        try { 
-          console.log('🔒 Resetting Turnstile widget before execute');
-          window.turnstile.reset(TS_STATE.widgetId); 
-        } catch (e) {
-          console.log('Reset error (non-fatal):', e);
-        }
+    // Initialize by finding the existing HTML widget - deterministic sequence
+    function init() {
+        if (initPromise) return initPromise;
         
-        console.log('🔒 Executing Turnstile widget...');
-        window.turnstile.execute(TS_STATE.widgetId, {
-          action: "search",
-          callback: (token) => { 
-            console.log('🔒 Turnstile execute completed with token');
-            inFlight = null; 
-            resolve(token); 
-          },
-          "error-callback": (err) => { 
-            console.warn('🔒 Turnstile execute failed:', err);
-            inFlight = null; 
-            reject(err || new Error("execute failed")); 
-          }
+        initPromise = new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 100; // 10 seconds max
+            
+            const checkWidget = () => {
+                attempts++;
+                
+                // First ensure Turnstile script is loaded
+                if (!window.turnstile) {
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkWidget, 100);
+                        return;
+                    } else {
+                        reject(new Error("Turnstile script failed to load"));
+                        return;
+                    }
+                }
+                
+                const widget = document.querySelector('.cf-turnstile');
+                if (widget) {
+                    // Try to get widget ID from various sources
+                    widgetId = widget.dataset.widgetId || widget.getAttribute('data-widget-id');
+                    
+                    if (widgetId) {
+                        ready = true;
+                        console.log('🔒 Found existing HTML Turnstile widget with ID:', widgetId);
+                        resolve();
+                    } else {
+                        // Widget exists but ID not set yet, wait longer
+                        if (attempts < maxAttempts) {
+                            setTimeout(checkWidget, 100);
+                        } else {
+                            reject(new Error("Widget ID never became available"));
+                        }
+                    }
+                } else {
+                    // No widget found yet, keep checking
+                    if (attempts < maxAttempts) {
+                        setTimeout(checkWidget, 100);
+                    } else {
+                        reject(new Error("No Turnstile widget found in DOM"));
+                    }
+                }
+            };
+            
+            checkWidget();
         });
-      });
+        
+        return initPromise;
     }
-    return inFlight;
-  }
 
-  async function tokenForRequest() { 
-    return getFresh(); 
-  }
-
-  async function retryToken() {
-    await ensureReady();
-    try { 
-      console.log('🔒 Resetting widget for retry');
-      window.turnstile.reset(TS_STATE.widgetId); 
-    } catch (e) {
-      console.log('Reset error during retry (non-fatal):', e);
+    // Set token from HTML widget callback
+    function setToken(token) {
+        currentToken = token;
+        console.log('🔒 Token received from HTML widget callback:', token ? 'YES' : 'NO');
+        inFlight = null; // Clear any pending execute
     }
-    return getFresh();
-  }
 
-  return { tokenForRequest, retryToken, ensureReady };
+    // Clear token
+    function clearToken() {
+        currentToken = null;
+        console.log('🔒 Token cleared');
+    }
+
+    // Execute the existing HTML widget - serialized to prevent race conditions
+    async function executeWidget() {
+        await init(); // Ensure widget is ready
+        
+        if (!ready || !widgetId || !window.turnstile) {
+            throw new Error("Turnstile widget not ready");
+        }
+
+        // Serialize execute calls to prevent "already executing" errors
+        if (!inFlight) {
+            inFlight = new Promise((resolve, reject) => {
+                console.log('🔒 Starting fresh execute sequence');
+                
+                // Clear any existing token first
+                currentToken = null;
+                
+                // Store original callback to restore later
+                const originalCallback = window.onTurnstileToken;
+                
+                // Create a one-time callback for this execution
+                const executeCallback = (token) => {
+                    console.log('🔒 Execute callback received token');
+                    currentToken = token;
+                    inFlight = null;
+                    
+                    // Restore original callback and call it too for compatibility
+                    window.onTurnstileToken = originalCallback;
+                    if (originalCallback && typeof originalCallback === 'function') {
+                        originalCallback(token);
+                    }
+                    
+                    resolve(token);
+                };
+                
+                // Set our temporary callback
+                window.onTurnstileToken = executeCallback;
+
+                try {
+                    console.log('🔒 Resetting and executing HTML widget with ID:', widgetId);
+                    window.turnstile.reset(widgetId);
+                    
+                    // Small delay to ensure reset completes before execute
+                    setTimeout(() => {
+                        try {
+                            window.turnstile.execute(widgetId);
+                        } catch (execError) {
+                            console.error('🔒 Execute call failed:', execError);
+                            window.onTurnstileToken = originalCallback;
+                            inFlight = null;
+                            reject(execError);
+                        }
+                    }, 200);
+                } catch (e) {
+                    console.error('🔒 Reset/Execute failed:', e);
+                    window.onTurnstileToken = originalCallback;
+                    inFlight = null;
+                    reject(e);
+                }
+
+                // Timeout after 15 seconds
+                setTimeout(() => {
+                    if (inFlight) {
+                        console.warn('🔒 Execute timeout after 15 seconds');
+                        window.onTurnstileToken = originalCallback;
+                        inFlight = null;
+                        reject(new Error("Turnstile execute timeout"));
+                    }
+                }, 15000);
+            });
+        } else {
+            console.log('🔒 Execute already in flight, waiting for existing call');
+        }
+
+        return inFlight;
+    }
+
+    async function tokenForRequest() {
+        // Always execute to get a fresh token
+        console.log('🔒 Getting fresh token for request');
+        return executeWidget();
+    }
+
+    async function retryToken() {
+        // Reset and execute again
+        currentToken = null;
+        inFlight = null; // Clear any existing in-flight to force new execute
+        console.log('🔒 Retry: clearing state and executing fresh widget');
+        return executeWidget();
+    }
+
+    return { 
+        tokenForRequest, 
+        retryToken, 
+        setToken, 
+        clearToken,
+        init
+    };
 })();
 
-// Global callback for legacy HTML widget compatibility (if still present)
-window.onTurnstileReady = function(token) {
-    console.log('🔒 Legacy HTML Turnstile widget callback (ignored in favor of programmatic)');
+// Keep original HTML callbacks but also integrate with token manager
+const originalOnTurnstileToken = window.onTurnstileToken;
+const originalOnTurnstileExpired = window.onTurnstileExpired;
+const originalOnTurnstileError = window.onTurnstileError;
+
+window.onTurnstileToken = (token) => {
+    console.log('🔒 HTML Widget issued token via callback');
+    TurnstileTokenManager.setToken(token);
+    
+    // Call the original callback if it exists
+    if (originalOnTurnstileToken && typeof originalOnTurnstileToken === 'function') {
+        originalOnTurnstileToken(token);
+    }
+    
+    // Also call the searchManager method for compatibility
+    if (window.searchManager && typeof window.searchManager._setToken === 'function') {
+        window.searchManager._setToken(token);
+    }
+};
+
+window.onTurnstileExpired = () => {
+    console.log('⌛ Token expired');
+    TurnstileTokenManager.clearToken();
+    
+    if (originalOnTurnstileExpired && typeof originalOnTurnstileExpired === 'function') {
+        originalOnTurnstileExpired();
+    }
+    
+    if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
+        window.searchManager._clearToken();
+    }
+};
+
+window.onTurnstileError = (err) => {
+    console.warn('⚠️ Turnstile error callback', err);
+    TurnstileTokenManager.clearToken();
+    
+    if (originalOnTurnstileError && typeof originalOnTurnstileError === 'function') {
+        originalOnTurnstileError(err);
+    }
+    
+    if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
+        window.searchManager._clearToken();
+    }
 };
 
 // YouTube Shorts search functionality
@@ -162,21 +272,36 @@ class SearchManager {
             currentVideoId: null
         };
         
-        // Initialize Turnstile early
+        // Legacy token properties for compatibility
+        this.turnstileReady = false;
+        this.htmlTurnstileToken = null;
+        
+        // Initialize connection to HTML widget
         this.initTurnstile();
     }
     
     initTurnstile() {
-        console.log('🔒 Initializing robust Turnstile system...');
+        console.log('🔒 Connecting to existing HTML Turnstile widget...');
         
-        // Kick off loading and rendering early to avoid "not ready" races
-        renderTurnstileWidget()
-            .then(() => {
-                console.log('✅ Turnstile system ready');
-            })
-            .catch(e => {
-                console.error('❌ Turnstile init failed:', e);
-            });
+        // Initialize the token manager
+        TurnstileTokenManager.init();
+        
+        // Wait a bit for widget to be ready
+        setTimeout(() => {
+            this.turnstileReady = true;
+            console.log('✅ Connected to HTML Turnstile widget');
+        }, 1000);
+    }
+
+    // Legacy methods for compatibility with HTML callbacks
+    _setToken(token) {
+        this.htmlTurnstileToken = token;
+        this.turnstileReady = true;
+        console.log('🔒 Legacy: Token set via callback:', token ? 'YES' : 'NO');
+    }
+
+    _clearToken() {
+        this.htmlTurnstileToken = null;
     }
 
     // Cloudflare Worker Shorts Search with robust token management
@@ -275,5 +400,102 @@ class SearchManager {
             thumbnail: `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`,
             url: `https://www.youtube.com/watch?v=${it.videoId}`
         }));
+    }
+
+    async searchShorts(query) {
+        if (!query || query.trim() === '') {
+            window.speechManager.speak('Please enter a search term');
+            return [];
+        }
+
+        try {
+            console.log(`🔍 Starting YouTube search for: "${query}"`);
+            this.showLoading('Searching videos');
+            
+            // Use new token flow
+            const results = await this.searchCloudflareShorts(query);
+            
+            if (results.length > 0) {
+                console.log(`✅ Found ${results.length} videos`);
+                this.shortsResults = results;
+                this.currentShortsIndex = 0;
+                this.hideLoading();
+                window.speechManager.speak(`Found ${results.length} videos`);
+                
+                return results;
+            } else {
+                console.log('❌ No videos found');
+                this.hideLoading();
+                window.speechManager.speak('No videos found');
+                return [];
+            }
+            
+        } catch (error) {
+            console.error('❌ Video search failed:', error);
+            this.hideLoading();
+            this.handleSearchError('video search', error);
+            return [];
+        }
+    }
+
+    // Load YouTube API if not already loaded
+    async loadYouTubeAPI() {
+        return new Promise((resolve) => {
+            // If API is already loaded and ready
+            if (window.YT && window.YT.Player) {
+                console.log('YouTube API already loaded and ready');
+                resolve();
+                return;
+            }
+            
+            // Set up the callback before loading the script
+            window.onYouTubeIframeAPIReady = () => {
+                console.log('YouTube API ready callback fired');
+                resolve();
+            };
+            
+            // Load the API script if not already present
+            if (!document.querySelector('script[src*="iframe_api"]')) {
+                const script = document.createElement('script');
+                script.src = 'https://www.youtube.com/iframe_api';
+                script.async = true;
+                document.head.appendChild(script);
+            } else {
+                // Script already exists, API should be ready soon
+                setTimeout(() => resolve(), 100);
+            }
+        });
+    }
+
+    // Show loading overlay
+    showLoading(message = 'Loading...') {
+        const overlay = document.getElementById('loading-overlay');
+        const label = document.getElementById('loading-label');
+        if (overlay && label) {
+            label.textContent = message;
+            overlay.classList.remove('hidden');
+        }
+    }
+
+    // Hide loading overlay
+    hideLoading() {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
+    }
+
+    // Handle search errors
+    handleSearchError(type, error) {
+        console.error(`${type} search error:`, error);
+        let message = `${type} search failed. Try again.`;
+        
+        if (error.message.includes('Access denied')) {
+            message = 'Access denied. Please refresh the page.';
+        } else if (error.message.includes('service error')) {
+            message = 'Search service error. Try again in a moment.';
+        }
+        
+        window.speechManager.speak(message);
     }
 }
