@@ -1,254 +1,82 @@
-// Robust Turnstile initialization and token management
-// Singleton state with correct sitekey
-const TS_STATE = {
-  scriptLoaded: false,
-  scriptPromise: null,
-  widgetId: null,
-  widgetReadyPromise: null,
-  sitekey: "0x4AAAAAAB7n5nabkWl0WOPa",  // Correct production sitekey for narbehouse.github.io
-};
-
-// 1) Load the Turnstile script exactly once
-function loadTurnstileScript() {
-  if (TS_STATE.scriptPromise) return TS_STATE.scriptPromise;
-  TS_STATE.scriptPromise = new Promise((resolve, reject) => {
-    // If it is already present, resolve after ready() fires
-    if (window.turnstile && window.turnstile.ready) {
-      TS_STATE.scriptLoaded = true;
-      return window.turnstile.ready(resolve);
-    }
-    const s = document.createElement("script");
-    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    s.async = true;
-    s.defer = true;
-    s.onload = () => {
-      TS_STATE.scriptLoaded = true;
-      window.turnstile.ready(resolve);
-    };
-    s.onerror = () => reject(new Error("Failed to load Turnstile script"));
-    document.head.appendChild(s);
-  });
-  return TS_STATE.scriptPromise;
-}
-
-// HTML Widget Token Manager - Works with existing HTML Turnstile widget
+// TurnstileTokenManager - Handles race conditions and serialization
 const TurnstileTokenManager = (() => {
-    let currentToken = null;
-    let inFlight = null;
     let widgetId = null;
+    let inFlight = null; // Promise for an in-progress token
     let ready = false;
-    let initPromise = null;
 
-    // Initialize by finding the existing HTML widget - deterministic sequence
-    function init() {
-        if (initPromise) return initPromise;
-        
-        initPromise = new Promise((resolve, reject) => {
-            let attempts = 0;
-            const maxAttempts = 100; // 10 seconds max
-            
-            const checkWidget = () => {
-                attempts++;
-                
-                // First ensure Turnstile script is loaded
-                if (!window.turnstile) {
-                    if (attempts < maxAttempts) {
-                        setTimeout(checkWidget, 100);
-                        return;
-                    } else {
-                        reject(new Error("Turnstile script failed to load"));
-                        return;
-                    }
-                }
-                
-                const widget = document.querySelector('.cf-turnstile');
-                if (widget) {
-                    // Try to get widget ID from various sources
-                    widgetId = widget.dataset.widgetId || widget.getAttribute('data-widget-id');
-                    
-                    if (widgetId) {
-                        ready = true;
-                        console.log('🔒 Found existing HTML Turnstile widget with ID:', widgetId);
-                        resolve();
-                    } else {
-                        // Widget exists but ID not set yet, wait longer
-                        if (attempts < maxAttempts) {
-                            setTimeout(checkWidget, 100);
-                        } else {
-                            reject(new Error("Widget ID never became available"));
-                        }
-                    }
-                } else {
-                    // No widget found yet, keep checking
-                    if (attempts < maxAttempts) {
-                        setTimeout(checkWidget, 100);
-                    } else {
-                        reject(new Error("No Turnstile widget found in DOM"));
-                    }
-                }
-            };
-            
-            checkWidget();
-        });
-        
-        return initPromise;
+    function setWidgetId(id) { 
+        widgetId = id; 
+        ready = !!id; 
+        console.log('🔒 Turnstile widget ID set:', id ? 'YES' : 'NO');
     }
 
-    // Set token from HTML widget callback
-    function setToken(token) {
-        currentToken = token;
-        console.log('🔒 Token received from HTML widget callback:', token ? 'YES' : 'NO');
-        inFlight = null; // Clear any pending execute
-    }
-
-    // Clear token
-    function clearToken() {
-        currentToken = null;
-        console.log('🔒 Token cleared');
-    }
-
-    // Execute the existing HTML widget - serialized to prevent race conditions
-    async function executeWidget() {
-        await init(); // Ensure widget is ready
-        
-        if (!ready || !widgetId || !window.turnstile) {
+    async function getFresh() {
+        if (!ready || !widgetId) {
+            // Try to read widget ID from the element
+            const el = document.querySelector(".cf-turnstile");
+            if (el && el.dataset.widgetId) { 
+                widgetId = el.dataset.widgetId; 
+                ready = true; 
+            }
+        }
+        if (!ready || !window.turnstile) {
             throw new Error("Turnstile widget not ready");
         }
 
-        // Serialize execute calls to prevent "already executing" errors
+        // Ensure only one execute runs at a time
         if (!inFlight) {
             inFlight = new Promise((resolve, reject) => {
-                console.log('🔒 Starting fresh execute sequence');
-                
-                // Clear any existing token first
-                currentToken = null;
-                
-                // Store original callback to restore later
-                const originalCallback = window.onTurnstileToken;
-                
-                // Create a one-time callback for this execution
-                const executeCallback = (token) => {
-                    console.log('🔒 Execute callback received token');
-                    currentToken = token;
-                    inFlight = null;
-                    
-                    // Restore original callback and call it too for compatibility
-                    window.onTurnstileToken = originalCallback;
-                    if (originalCallback && typeof originalCallback === 'function') {
-                        originalCallback(token);
-                    }
-                    
-                    resolve(token);
-                };
-                
-                // Set our temporary callback
-                window.onTurnstileToken = executeCallback;
-
-                try {
-                    console.log('🔒 Resetting and executing HTML widget with ID:', widgetId);
-                    window.turnstile.reset(widgetId);
-                    
-                    // Small delay to ensure reset completes before execute
-                    setTimeout(() => {
-                        try {
-                            window.turnstile.execute(widgetId);
-                        } catch (execError) {
-                            console.error('🔒 Execute call failed:', execError);
-                            window.onTurnstileToken = originalCallback;
-                            inFlight = null;
-                            reject(execError);
-                        }
-                    }, 200);
+                try { 
+                    console.log('🔒 Resetting Turnstile widget before execute');
+                    window.turnstile.reset(widgetId); 
                 } catch (e) {
-                    console.error('🔒 Reset/Execute failed:', e);
-                    window.onTurnstileToken = originalCallback;
-                    inFlight = null;
-                    reject(e);
+                    console.log('Reset error (non-fatal):', e);
                 }
-
-                // Timeout after 15 seconds
-                setTimeout(() => {
-                    if (inFlight) {
-                        console.warn('🔒 Execute timeout after 15 seconds');
-                        window.onTurnstileToken = originalCallback;
-                        inFlight = null;
-                        reject(new Error("Turnstile execute timeout"));
+                
+                console.log('🔒 Executing Turnstile widget...');
+                window.turnstile.execute(widgetId, {
+                    action: "search",
+                    callback: (token) => { 
+                        console.log('🔒 Turnstile execute completed with token');
+                        inFlight = null; 
+                        resolve(token); 
+                    },
+                    "error-callback": (err) => { 
+                        console.warn('🔒 Turnstile execute failed:', err);
+                        inFlight = null; 
+                        reject(err || new Error("Turnstile execute failed")); 
                     }
-                }, 15000);
+                });
             });
-        } else {
-            console.log('🔒 Execute already in flight, waiting for existing call');
         }
-
         return inFlight;
     }
 
-    async function tokenForRequest() {
-        // Always execute to get a fresh token
-        console.log('🔒 Getting fresh token for request');
-        return executeWidget();
+    async function getForRequest() {
+        // Always get a fresh token right before the request
+        return getFresh();
     }
 
     async function retryToken() {
-        // Reset and execute again
-        currentToken = null;
-        inFlight = null; // Clear any existing in-flight to force new execute
-        console.log('🔒 Retry: clearing state and executing fresh widget');
-        return executeWidget();
+        try { 
+            if (widgetId) window.turnstile.reset(widgetId); 
+        } catch (e) {
+            console.log('Reset error during retry (non-fatal):', e);
+        }
+        return getFresh();
     }
 
-    return { 
-        tokenForRequest, 
-        retryToken, 
-        setToken, 
-        clearToken,
-        init
-    };
+    return { setWidgetId, getForRequest, retryToken };
 })();
 
-// Keep original HTML callbacks but also integrate with token manager
-const originalOnTurnstileToken = window.onTurnstileToken;
-const originalOnTurnstileExpired = window.onTurnstileExpired;
-const originalOnTurnstileError = window.onTurnstileError;
-
-window.onTurnstileToken = (token) => {
-    console.log('🔒 HTML Widget issued token via callback');
-    TurnstileTokenManager.setToken(token);
-    
-    // Call the original callback if it exists
-    if (originalOnTurnstileToken && typeof originalOnTurnstileToken === 'function') {
-        originalOnTurnstileToken(token);
-    }
-    
-    // Also call the searchManager method for compatibility
-    if (window.searchManager && typeof window.searchManager._setToken === 'function') {
-        window.searchManager._setToken(token);
-    }
-};
-
-window.onTurnstileExpired = () => {
-    console.log('⌛ Token expired');
-    TurnstileTokenManager.clearToken();
-    
-    if (originalOnTurnstileExpired && typeof originalOnTurnstileExpired === 'function') {
-        originalOnTurnstileExpired();
-    }
-    
-    if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
-        window.searchManager._clearToken();
-    }
-};
-
-window.onTurnstileError = (err) => {
-    console.warn('⚠️ Turnstile error callback', err);
-    TurnstileTokenManager.clearToken();
-    
-    if (originalOnTurnstileError && typeof originalOnTurnstileError === 'function') {
-        originalOnTurnstileError(err);
-    }
-    
-    if (window.searchManager && typeof window.searchManager._clearToken === 'function') {
-        window.searchManager._clearToken();
+// Global callback for Turnstile widget (referenced in HTML)
+window.onTurnstileReady = function(token) {
+    console.log('🔒 HTML Turnstile widget ready with token:', token ? 'YES' : 'NO');
+    // Store the token for later use
+    if (window.searchManager) {
+        window.searchManager.htmlTurnstileToken = token || null;
+        window.searchManager.turnstileReady = true;
+        console.log('✅ Turnstile token stored in searchManager');
     }
 };
 
@@ -263,6 +91,10 @@ class SearchManager {
         // Updated Cloudflare Worker endpoint for shorts
         this.shortsEndpoint = 'https://dawn-star-cad3.narbehousellc.workers.dev/';
         
+        // Turnstile security with serialization
+        this.turnstileReady = false;
+        this.htmlTurnstileToken = null;
+        
         // Autoplay state
         this.autoplayEnabled = true;
         this.currentPlayer = null;
@@ -272,39 +104,162 @@ class SearchManager {
             currentVideoId: null
         };
         
-        // Legacy token properties for compatibility
-        this.turnstileReady = false;
-        this.htmlTurnstileToken = null;
-        
-        // Initialize connection to HTML widget
+        // Initialize Turnstile when ready
         this.initTurnstile();
     }
     
     initTurnstile() {
-        console.log('🔒 Connecting to existing HTML Turnstile widget...');
+        console.log('🔒 Initializing Turnstile (using HTML widget)...');
         
-        // Initialize the token manager
-        TurnstileTokenManager.init();
+        // Check if the HTML widget container exists
+        const widgetContainer = document.getElementById('turnstile-widget');
+        if (!widgetContainer) {
+            console.error('❌ Turnstile widget container not found in HTML');
+            this.turnstileReady = false;
+            return;
+        }
         
-        // Wait a bit for widget to be ready
-        setTimeout(() => {
-            this.turnstileReady = true;
-            console.log('✅ Connected to HTML Turnstile widget');
-        }, 1000);
+        console.log('✅ Found HTML Turnstile widget container');
+        
+        // Set up the widget ID when Turnstile loads
+        const setupWidget = () => {
+            const el = document.querySelector(".cf-turnstile");
+            if (el && el.dataset.widgetId) {
+                TurnstileTokenManager.setWidgetId(el.dataset.widgetId);
+                this.turnstileReady = true;
+            } else if (window.turnstile) {
+                // Widget ready but ID not set yet, wait a bit
+                setTimeout(setupWidget, 100);
+            }
+        };
+        
+        // Check if Turnstile script is loaded
+        if (window.turnstile) {
+            console.log('✅ Turnstile script already loaded');
+            setupWidget();
+        } else {
+            // Wait for Turnstile script to load
+            let attempts = 0;
+            const checkTurnstile = setInterval(() => {
+                attempts++;
+                if (window.turnstile) {
+                    clearInterval(checkTurnstile);
+                    console.log('✅ Turnstile script loaded after waiting');
+                    setupWidget();
+                } else if (attempts > 50) {
+                    clearInterval(checkTurnstile);
+                    console.warn('⚠️ Turnstile script failed to load');
+                    this.turnstileReady = false;
+                }
+            }, 100);
+        }
     }
 
-    // Legacy methods for compatibility with HTML callbacks
     _setToken(token) {
-        this.htmlTurnstileToken = token;
+        this.htmlTurnstileToken = token || null;
         this.turnstileReady = true;
-        console.log('🔒 Legacy: Token set via callback:', token ? 'YES' : 'NO');
+        console.log('🔒 Token set via callback:', token ? 'YES' : 'NO');
     }
 
     _clearToken() {
         this.htmlTurnstileToken = null;
+        // Token manager handles reset internally
     }
 
-    // Cloudflare Worker Shorts Search with robust token management
+    clearTurnstileToken() {
+        this.htmlTurnstileToken = null;
+        try {
+            if (window.turnstile) window.turnstile.reset('#turnstile-widget');
+        } catch (e) {
+            console.log('Error resetting widget:', e);
+        }
+    }
+
+    /**
+     * Mobile-safe token acquisition that works with callback-based flow
+     */
+    async getTsToken() {
+        // 1) If the HTML callback already stored a token, use it
+        if (this.htmlTurnstileToken) {
+            console.log('🔒 Using stored HTML Turnstile token');
+            const t = this.htmlTurnstileToken;
+            this.htmlTurnstileToken = null; // single-use
+            return t;
+        }
+
+        // 2) If Turnstile isn't ready, bail gracefully
+        if (!this.turnstileReady || !window.turnstile) {
+            console.warn('Turnstile not ready, proceeding without token');
+            return null;
+        }
+
+        // 3) Ask the widget for its current token (mobile-safe)
+        try {
+            const t0 = window.turnstile.getResponse?.('#turnstile-widget');
+            if (t0) {
+                console.log('🔒 Read token via getResponse');
+                return t0;
+            }
+        } catch (e) {
+            console.log('Error reading token:', e);
+        }
+
+        // 4) Execute the widget, then poll getResponse briefly
+        try {
+            console.log('🔒 Executing Turnstile widget...');
+            await window.turnstile.execute('#turnstile-widget'); // returns after solving
+            const deadline = Date.now() + 4000;
+            while (Date.now() < deadline) {
+                const t = window.turnstile.getResponse?.('#turnstile-widget');
+                if (t) {
+                    console.log('🔒 Got fresh token after execute');
+                    return t;
+                }
+                await new Promise(r => setTimeout(r, 50));
+            }
+        } catch (e) {
+            console.warn('Turnstile execute failed:', e);
+        }
+        return null;
+    }
+
+    async searchShorts(query) {
+        if (!query || query.trim() === '') {
+            window.speechManager.speak('Please enter a search term');
+            return [];
+        }
+
+        try {
+            console.log(`🔍 Starting YouTube search for: "${query}"`);
+            this.showLoading('Searching videos');
+            
+            // Use new token flow
+            const results = await this.searchCloudflareShorts(query);
+            
+            if (results.length > 0) {
+                console.log(`✅ Found ${results.length} videos`);
+                this.shortsResults = results;
+                this.currentShortsIndex = 0;
+                this.hideLoading();
+                window.speechManager.speak(`Found ${results.length} videos`);
+                
+                return results;
+            } else {
+                console.log('❌ No videos found');
+                this.hideLoading();
+                window.speechManager.speak('No videos found');
+                return [];
+            }
+            
+        } catch (error) {
+            console.error('❌ Video search failed:', error);
+            this.hideLoading();
+            this.handleSearchError('video search', error);
+            return [];
+        }
+    }
+
+    // Cloudflare Worker Shorts Search with proper token management
     async searchCloudflareShorts(query) {
         const url = `${this.shortsEndpoint}?q=${encodeURIComponent(query)}&limit=50`;
         console.log('📹 Searching videos via Cloudflare Worker...');
@@ -349,41 +304,40 @@ class SearchManager {
             return res;
         };
 
-        // Always get a fresh token before the request using robust token manager
-        let token;
+        // 1) Get fresh token before the request
+        let token = null;
         try {
-            token = await TurnstileTokenManager.tokenForRequest();
+            token = await TurnstileTokenManager.getForRequest();
             console.log('🔒 Got fresh token for request');
-        } catch (e) {
-            console.warn("Could not get Turnstile token:", e);
-            throw new Error("Access denied - please refresh the page");
+        } catch (error) {
+            console.warn('⚠️ Could not get Turnstile token:', error);
         }
 
         let res = await doRequest(token);
 
-        // On 401, retry with a brand new token
+        // 2) On 401, reset and retry ONCE with a brand new token
         if (res.status === 401) {
-            console.warn("401 on first call, retrying with a brand new token...");
+            console.warn('🔁 Token rejected (401), getting new token and retrying...');
             try {
-                const retryToken = await TurnstileTokenManager.retryToken();
+                token = await TurnstileTokenManager.retryToken();
                 console.log('🔒 Got retry token');
-                res = await doRequest(retryToken);
-            } catch (e) {
-                console.warn("Could not get retry token:", e);
-                throw new Error("Access denied - please refresh the page");
+                res = await doRequest(token);
+            } catch (error) {
+                console.warn('⚠️ Could not get retry token:', error);
+                // Continue with the 401 response to handle below
             }
         }
 
         if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            console.error('❌ Worker API error:', res.status, text);
+            const txt = await res.text().catch(() => '');
+            console.error('❌ Worker API error:', res.status, txt);
             if (res.status === 401 || res.status === 403) {
                 throw new Error('Access denied - please refresh the page');
             }
             if (res.status >= 500) {
                 throw new Error('Search service error - try again');
             }
-            throw new Error(`Access denied - server said ${res.status}: ${text || res.statusText}`);
+            throw new Error(`Search failed with ${res.status}`);
         }
 
         const payload = await res.json().catch(() => null);
@@ -400,42 +354,6 @@ class SearchManager {
             thumbnail: `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`,
             url: `https://www.youtube.com/watch?v=${it.videoId}`
         }));
-    }
-
-    async searchShorts(query) {
-        if (!query || query.trim() === '') {
-            window.speechManager.speak('Please enter a search term');
-            return [];
-        }
-
-        try {
-            console.log(`🔍 Starting YouTube search for: "${query}"`);
-            this.showLoading('Searching videos');
-            
-            // Use new token flow
-            const results = await this.searchCloudflareShorts(query);
-            
-            if (results.length > 0) {
-                console.log(`✅ Found ${results.length} videos`);
-                this.shortsResults = results;
-                this.currentShortsIndex = 0;
-                this.hideLoading();
-                window.speechManager.speak(`Found ${results.length} videos`);
-                
-                return results;
-            } else {
-                console.log('❌ No videos found');
-                this.hideLoading();
-                window.speechManager.speak('No videos found');
-                return [];
-            }
-            
-        } catch (error) {
-            console.error('❌ Video search failed:', error);
-            this.hideLoading();
-            this.handleSearchError('video search', error);
-            return [];
-        }
     }
 
     // Load YouTube API if not already loaded
@@ -467,35 +385,515 @@ class SearchManager {
         });
     }
 
-    // Show loading overlay
-    showLoading(message = 'Loading...') {
-        const overlay = document.getElementById('loading-overlay');
-        const label = document.getElementById('loading-label');
-        if (overlay && label) {
-            label.textContent = message;
-            overlay.classList.remove('hidden');
+    // Play a video by videoId - let YouTube API manage everything
+    async playVideoId(videoId) {
+        console.log('🎥 Playing video ID:', videoId);
+        
+        try {
+            // Ensure API is loaded
+            await this.loadYouTubeAPI();
+            
+            // Destroy previous player instance (important!)
+            if (this.ytPlayer && this.ytPlayer.destroy) {
+                try {
+                    console.log('Destroying previous player instance');
+                    this.ytPlayer.destroy();
+                } catch (e) {
+                    console.log('Error destroying player:', e);
+                }
+                this.ytPlayer = null;
+            }
+            
+            // Create new player - let YouTube API create the iframe
+            console.log('Creating new YouTube player for host element');
+            this.ytPlayer = new YT.Player('youtube-player-host', {
+                width: '100%',
+                height: '100%',
+                videoId: videoId,
+                playerVars: {
+                    autoplay: 1,
+                    mute: 1,                // Start muted for autoplay compliance, but will unmute after ready
+                    playsinline: 1,
+                    rel: 0,
+                    modestbranding: 1,
+                    controls: 0,            // Hide default controls since we have our own
+                    fs: 0,                  // No fullscreen
+                    iv_load_policy: 3,      // No annotations
+                    disablekb: 1,           // No keyboard controls
+                    // CRITICAL: Must match exact origin
+                    origin: window.location.origin,
+                    enablejsapi: 1
+                },
+                events: {
+                    onReady: (event) => {
+                        console.log('✅ YouTube player ready');
+                        this.onPlayerReady(event);
+                    },
+                    onStateChange: (event) => {
+                        console.log('🔄 Player state change:', event.data);
+                        this.onPlayerStateChange(event);
+                    },
+                    onError: (event) => {
+                        console.error('❌ YouTube player error:', event.data);
+                        this.onPlayerError(event);
+                    }
+                }
+            });
+            
+            // Update our state - videos will start unmuted
+            this.playerState = {
+                isPlaying: true,    // Will start playing when ready
+                isMuted: false,     // Will be unmuted automatically after ready
+                currentVideoId: videoId
+            };
+            
+        } catch (error) {
+            console.error('❌ Error playing video:', error);
+            window.speechManager.speak('player error');
+            this.handleVideoError();
+        }
+    }
+    
+    onPlayerReady(event) {
+        try {
+            console.log('Player ready - starting playback and auto-unmuting');
+            const player = event.target;
+            
+            // Start muted for autoplay compliance, then unmute after a brief delay
+            player.mute();
+            player.playVideo();
+            
+            // Auto-unmute after player starts (gives time for autoplay to work)
+            setTimeout(() => {
+                try {
+                    player.unMute();
+                    player.setVolume(50); // Set reasonable volume
+                    console.log('🔊 Auto-unmuted video and set volume to 50%');
+                    this.playerState.isMuted = false;
+                    
+                    // Update button labels
+                    this.updatePlayerButtons();
+                } catch (error) {
+                    console.log('Could not auto-unmute video:', error);
+                    this.playerState.isMuted = true;
+                }
+            }, 1000); // Wait 1 second for autoplay to establish
+            
+            console.log('✅ Player initialized successfully');
+            
+        } catch (error) {
+            console.error('Error in onPlayerReady:', error);
+        }
+    }
+    
+    onPlayerStateChange(event) {
+        const state = event.data;
+        
+        switch (state) {
+            case YT.PlayerState.UNSTARTED:
+                this.playerState.isPlaying = false;
+                break;
+            case YT.PlayerState.ENDED:
+                console.log('Video ended, auto-advancing...');
+                this.playerState.isPlaying = false;
+                if (this.autoplayEnabled) {
+                    setTimeout(() => {
+                        this.autoAdvanceToNext();
+                    }, 1500);
+                }
+                break;
+            case YT.PlayerState.PLAYING:
+                this.playerState.isPlaying = true;
+                break;
+            case YT.PlayerState.PAUSED:
+                this.playerState.isPlaying = false;
+                break;
+            case YT.PlayerState.BUFFERING:
+                // Don't change state during buffering
+                break;
+            case YT.PlayerState.CUED:
+                this.playerState.isPlaying = false;
+                break;
+        }
+        
+        // Update button labels after state change
+        this.updatePlayerButtons();
+    }
+    
+    onPlayerError(event) {
+        const errorCode = event.data;
+        console.error('❌ YouTube player error code:', errorCode);
+        
+        let shouldSkip = true;
+        
+        switch (errorCode) {
+            case 2:
+                console.log('Invalid video ID, silently skipping to next video');
+                break;
+            case 5:
+                console.log('HTML5 player error, silently skipping to next video');
+                break;
+            case 100:
+                console.log('Video not found or private, silently skipping to next video');
+                break;
+            case 101:
+            case 150:
+                console.log('Video not embeddable, silently skipping to next video');
+                break;
+            default:
+                console.log('Unknown video error, silently skipping to next video');
+                break;
+        }
+        
+        // No TTS announcement - just silently skip
+        
+        if (shouldSkip) {
+            // Mark current video as unplayable
+            this.markVideoAsUnplayable(this.currentShortsIndex);
+            
+            // Try to skip to next playable video immediately (no delay)
+            this.skipToNextPlayableVideo();
+        }
+    }
+    
+    markVideoAsUnplayable(index) {
+        if (this.shortsResults[index]) {
+            this.shortsResults[index].unplayable = true;
+            console.log(`❌ Marked video ${index + 1} as unplayable: ${this.shortsResults[index].title}`);
+        }
+    }
+    
+    findNextPlayableVideo(startIndex, direction = 1) {
+        const totalVideos = this.shortsResults.length;
+        if (totalVideos === 0) return -1;
+        
+        let attempts = 0;
+        let currentIndex = startIndex;
+        
+        // Try to find a playable video within reasonable attempts
+        while (attempts < totalVideos) {
+            currentIndex = direction > 0 
+                ? (currentIndex + 1) % totalVideos
+                : (currentIndex - 1 + totalVideos) % totalVideos;
+            
+            const video = this.shortsResults[currentIndex];
+            if (video && !video.unplayable) {
+                console.log(`✅ Found playable video at index ${currentIndex}: ${video.title}`);
+                return currentIndex;
+            }
+            
+            attempts++;
+        }
+        
+        console.log('❌ No playable videos found in results');
+        return -1;
+    }
+    
+    skipToNextPlayableVideo() {
+        const nextIndex = this.findNextPlayableVideo(this.currentShortsIndex, 1);
+        
+        if (nextIndex !== -1) {
+            this.currentShortsIndex = nextIndex;
+            const nextVideo = this.shortsResults[nextIndex];
+            console.log(`⏭️ Silently skipping to next playable video: ${nextVideo.title}`);
+            this.playVideoId(nextVideo.videoId);
+        } else {
+            // All videos are unplayable - only speak if absolutely no videos work
+            console.log('❌ All videos in search results are unplayable');
+            window.speechManager.speak('No playable videos found');
+            
+            // Close the video player
+            setTimeout(() => {
+                if (window.narbe && window.narbe.closeShortsFeed) {
+                    window.narbe.closeShortsFeed();
+                }
+            }, 2000);
+        }
+    }
+    
+    skipToPreviousPlayableVideo() {
+        const prevIndex = this.findNextPlayableVideo(this.currentShortsIndex, -1);
+        
+        if (prevIndex !== -1) {
+            this.currentShortsIndex = prevIndex;
+            const prevVideo = this.shortsResults[prevIndex];
+            console.log(`⏮️ Silently skipping to previous playable video: ${prevVideo.title}`);
+            this.playVideoId(prevVideo.videoId);
+        } else {
+            // No TTS - just silently stay on current video
+            console.log('No previous playable videos available');
+        }
+    }
+    
+    handleVideoError() {
+        // Mark current video as unplayable and try next one silently
+        this.markVideoAsUnplayable(this.currentShortsIndex);
+        this.skipToNextPlayableVideo();
+    }
+
+    // Update button labels based on current state
+    updatePlayerButtons() {
+        const playPauseBtn = document.querySelector('[data-action="shorts_play_pause"]');
+        const muteBtn = document.querySelector('[data-action="shorts_mute_toggle"]');
+        
+        if (playPauseBtn) {
+            playPauseBtn.textContent = this.playerState.isPlaying ? 'PAUSE' : 'PLAY';
+        }
+        
+        if (muteBtn && this.ytPlayer && this.ytPlayer.isMuted) {
+            const actuallyMuted = this.ytPlayer.isMuted();
+            muteBtn.textContent = actuallyMuted ? 'UNMUTE' : 'MUTE';
+        } else if (muteBtn) {
+            muteBtn.textContent = this.playerState.isMuted ? 'UNMUTE' : 'MUTE';
+        }
+    }
+    
+    // Control methods using YouTube API
+    togglePlayPause() {
+        if (!this.ytPlayer || !this.ytPlayer.getPlayerState) {
+            console.log('❌ No YouTube player available');
+            window.speechManager.speak('player not ready');
+            return;
+        }
+        
+        try {
+            const state = this.ytPlayer.getPlayerState();
+            console.log('Current player state:', state);
+            
+            if (state === YT.PlayerState.PLAYING) {
+                console.log('▶️ Pausing video');
+                this.ytPlayer.pauseVideo();
+                this.playerState.isPlaying = false;
+                window.speechManager.speak('paused');
+            } else if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                console.log('⏸️ Playing video');
+                this.ytPlayer.playVideo();
+                this.playerState.isPlaying = true;
+                window.speechManager.speak('playing');
+            } else {
+                console.log('🔄 Player in transitional state, trying to play');
+                this.ytPlayer.playVideo();
+                this.playerState.isPlaying = true;
+                window.speechManager.speak('playing');
+            }
+            
+            // Update button labels immediately
+            this.updatePlayerButtons();
+            
+        } catch (error) {
+            console.error('❌ Error in togglePlayPause:', error);
+            window.speechManager.speak('play pause failed');
+        }
+    }
+    
+    toggleMute() {
+        if (!this.ytPlayer || !this.ytPlayer.isMuted) {
+            console.log('❌ No YouTube player available');
+            window.speechManager.speak('player not ready');
+            return;
+        }
+        
+        try {
+            const isMuted = this.ytPlayer.isMuted();
+            console.log('Current mute state:', isMuted);
+            
+            if (isMuted) {
+                console.log('🔊 Unmuting video');
+                this.ytPlayer.unMute();
+                // Set reasonable volume
+                if (this.ytPlayer.setVolume) {
+                    this.ytPlayer.setVolume(50);
+                }
+                this.playerState.isMuted = false;
+                window.speechManager.speak('unmuted');
+            } else {
+                console.log('🔇 Muting video');
+                this.ytPlayer.mute();
+                this.playerState.isMuted = true;
+                window.speechManager.speak('muted');
+            }
+            
+            // Update button labels immediately
+            this.updatePlayerButtons();
+            
+        } catch (error) {
+            console.error('❌ Error in toggleMute:', error);
+            window.speechManager.speak('mute toggle failed');
+        }
+    }
+    
+    rewindVideo() {
+        if (!this.ytPlayer || !this.ytPlayer.getCurrentTime || !this.ytPlayer.seekTo) {
+            console.log('❌ No YouTube player available for rewind');
+            window.speechManager.speak('player not ready');
+            return;
+        }
+        
+        try {
+            const currentTime = this.ytPlayer.getCurrentTime();
+            const newTime = Math.max(0, currentTime - 10); // Go back 10 seconds, but not below 0
+            
+            console.log(`⏪ Rewinding from ${currentTime}s to ${newTime}s`);
+            this.ytPlayer.seekTo(newTime, true);
+            window.speechManager.speak('rewind');
+            
+        } catch (error) {
+            console.error('❌ Error in rewindVideo:', error);
+            window.speechManager.speak('rewind failed');
+        }
+    }
+    
+    fastForwardVideo() {
+        if (!this.ytPlayer || !this.ytPlayer.getCurrentTime || !this.ytPlayer.seekTo || !this.ytPlayer.getDuration) {
+            console.log('❌ No YouTube player available for fast forward');
+            window.speechManager.speak('player not ready');
+            return;
+        }
+        
+        try {
+            const currentTime = this.ytPlayer.getCurrentTime();
+            const duration = this.ytPlayer.getDuration();
+            const newTime = Math.min(duration, currentTime + 10); // Go forward 10 seconds, but not beyond video end
+            
+            console.log(`⏩ Fast forwarding from ${currentTime}s to ${newTime}s (duration: ${duration}s)`);
+            this.ytPlayer.seekTo(newTime, true);
+            window.speechManager.speak('fast forward');
+            
+        } catch (error) {
+            console.error('❌ Error in fastForwardVideo:', error);
+            window.speechManager.speak('fast forward failed');
         }
     }
 
-    // Hide loading overlay
+    // Navigation methods - now work with videoId
+    getCurrentVideoId() {
+        if (this.shortsResults && this.shortsResults[this.currentShortsIndex]) {
+            return this.shortsResults[this.currentShortsIndex].videoId;
+        }
+        return null;
+    }
+    
+    nextShorts() {
+        if (this.shortsResults.length > 0) {
+            this.currentShortsIndex = (this.currentShortsIndex + 1) % this.shortsResults.length;
+            const currentVideo = this.shortsResults[this.currentShortsIndex];
+            console.log(`Next video: ${this.currentShortsIndex + 1}/${this.shortsResults.length} - ${currentVideo?.title}`);
+            return this.currentShortsIndex;
+        }
+        return 0;
+    }
+    
+    prevShorts() {
+        if (this.shortsResults.length > 0) {
+            this.currentShortsIndex = (this.currentShortsIndex - 1 + this.shortsResults.length) % this.shortsResults.length;
+            const currentVideo = this.shortsResults[this.currentShortsIndex];
+            console.log(`Previous video: ${this.currentShortsIndex + 1}/${this.shortsResults.length} - ${currentVideo?.title}`);
+            return this.currentShortsIndex;
+        }
+        return 0;
+    }
+
+    autoAdvanceToNext() {
+        // Only auto-advance if we're still in the overlay
+        const shortsFeed = document.getElementById('shorts-feed');
+        if (shortsFeed && !shortsFeed.classList.contains('hidden')) {
+            console.log(`Auto-advancing to next video...`);
+            
+            const nextIndex = this.findNextPlayableVideo(this.currentShortsIndex, 1);
+            if (nextIndex !== -1) {
+                this.currentShortsIndex = nextIndex;
+                const nextVideo = this.shortsResults[nextIndex];
+                console.log(`Loading next playable video: ${nextVideo.title}`);
+                this.playVideoId(nextVideo.videoId);
+            } else {
+                console.log('No more playable videos for auto-advance');
+                // Only speak if we reach the absolute end
+                window.speechManager.speak('End of videos');
+            }
+        }
+    }
+    
+    loadNewVideo() {
+        const videoId = this.getCurrentVideoId();
+        if (videoId) {
+            const currentVideo = this.shortsResults[this.currentShortsIndex];
+            if (currentVideo && currentVideo.unplayable) {
+                console.log('Current video marked as unplayable, finding alternative...');
+                this.skipToNextPlayableVideo();
+            } else {
+                console.log('🔄 Loading new video:', videoId);
+                this.playVideoId(videoId);
+            }
+        }
+    }
+    
+    // Simplified setup method
+    setupPlayer() {
+        console.log('🎬 Setting up initial player...');
+        const videoId = this.getCurrentVideoId();
+        if (videoId) {
+            this.playVideoId(videoId);
+        } else {
+            console.error('❌ No video ID available for setup');
+        }
+    }
+    
+    cleanup() {
+        console.log('🧹 Cleaning up player...');
+        
+        // Destroy YouTube player properly
+        if (this.ytPlayer) {
+            try {
+                console.log('Destroying YouTube player...');
+                this.ytPlayer.destroy();
+            } catch (error) {
+                console.log('Error destroying player:', error);
+            }
+            this.ytPlayer = null;
+        }
+        
+        // Reset state
+        this.playerState = {
+            isPlaying: false,
+            isMuted: true,
+            currentVideoId: null
+        };
+        
+        console.log('✅ Cleanup complete');
+    }
+
+    handleSearchError(type, error) {
+        console.error(`${type} search error:`, error);
+        
+        if (error.message.includes('403') || error.message.includes('quotaExceeded')) {
+            window.speechManager.speak(`${type} search quota exceeded. Try again later.`);
+        } else if (error.message.includes('400') || error.message.includes('invalid')) {
+            window.speechManager.speak(`Invalid ${type} search request.`);
+        } else if (error.message.includes('timeout')) {
+            window.speechManager.speak(`${type} search timed out. Check connection.`);
+        } else {
+            window.speechManager.speak(`${type} search failed. Try again.`);
+        }
+    }
+
+    // Utility methods
+    showLoading(message) {
+        const overlay = document.getElementById('loading-overlay');
+        const label = document.getElementById('loading-label');
+        
+        if (overlay && label) {
+            label.textContent = message || 'Loading...';
+            overlay.classList.remove('hidden');
+        }
+    }
+    
     hideLoading() {
         const overlay = document.getElementById('loading-overlay');
         if (overlay) {
             overlay.classList.add('hidden');
         }
     }
-
-    // Handle search errors
-    handleSearchError(type, error) {
-        console.error(`${type} search error:`, error);
-        let message = `${type} search failed. Try again.`;
-        
-        if (error.message.includes('Access denied')) {
-            message = 'Access denied. Please refresh the page.';
-        } else if (error.message.includes('service error')) {
-            message = 'Search service error. Try again in a moment.';
-        }
-        
-        window.speechManager.speak(message);
-    }
 }
+
+// Global search manager instance
+window.searchManager = new SearchManager();
