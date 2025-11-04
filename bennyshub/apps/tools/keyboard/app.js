@@ -319,6 +319,21 @@
     }
   }
 
+  // Added: handle Enter key press start for selection and long-press detection
+  function startSelecting() {
+    if (!returnPressed) {
+      returnPressed = true;
+      returnPressTime = Date.now();
+      longPressTriggered = false;
+      const speed = scanSpeeds[currentScanSpeed];
+      setTimeout(() => {
+        if (returnPressed && (Date.now() - returnPressTime) >= speed.longPress) {
+          handleLongPress();
+        }
+      }, speed.longPress);
+    }
+  }
+
   function stopSelecting() {
     if (returnPressed) {
       returnPressed = false;
