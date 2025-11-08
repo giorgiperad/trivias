@@ -588,7 +588,8 @@ function init() {
 
 	// Charge bar UI (hidden by default)
 	chargeBar = document.createElement("div");
-	chargeBar.style = "position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: 280px; height: 14px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; overflow: hidden; display: none;";
+	// Position under the scoreboard (will be refined dynamically)
+	chargeBar.style = "position: fixed; left: 50%; top: 56px; transform: translateX(-50%); width: 280px; height: 14px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5); border-radius: 8px; overflow: hidden; display: none; z-index: 1000;";
 	chargeFill = document.createElement("div");
 	chargeFill.style = "height: 100%; width: 0%; background: linear-gradient(90deg, #33cc33, #00ff99); box-shadow: 0 0 8px #00ff99;";
 	chargeBar.appendChild(chargeFill);
@@ -966,7 +967,7 @@ function updateScene(dt) {
 	if (localPlayer && !localPlayer.physics.simulationActive
 			&& !pickingBall && !positioningBall && !rollingBall) {
 		var t = (typeof clock.getElapsedTime === 'function') ? clock.getElapsedTime() : 0.0;
-		var T = 10.0;
+		var T = 20.00; // Doubled from 10.00 to slow down oscillation speed by half
 		var omega = 2.0 * Math.PI / T;
 		// Position oscillation when NOT in aiming mode
 		if (!aimingMode && spaceHeld) {
@@ -994,6 +995,7 @@ function updateScene(dt) {
 			if (chargeBar && chargeFill) {
 				chargeBar.style.display = "block";
 				chargeFill.style.width = Math.round(kVis * 100) + "%";
+				positionChargeBarUnderScore();
 			}
 		} else {
 			if (chargeBar) chargeBar.style.display = "none";
@@ -1071,6 +1073,8 @@ function resizeViewport() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 	renderer.setSize(window.innerWidth, window.innerHeight);
+	// Reposition the charge bar under the score after layout changes
+	positionChargeBarUnderScore();
 }
 
 function syncMeshToBody(mesh, body) {
@@ -1469,7 +1473,8 @@ function onDocumentKeyUp(event) {
 			var now = (typeof clock.getElapsedTime === 'function') ? clock.getElapsedTime() : 0.0;
 			// Ensure aim angle is current at release moment
 			if (aimHeld) {
-				var T = 10.0; var omega = 2.0 * Math.PI / T; var tauAim = Math.max(0.0, now - aimStartTime);
+				var T = 20.00; // Doubled from 10.00 to slow down oscillation speed by half
+				var omega = 2.0 * Math.PI / T; var tauAim = Math.max(0.0, now - aimStartTime);
 				currentAimAngle = BALL_ANGLE_MAX * Math.sin(omega * tauAim + aimPhase);
 			}
 			var held = Math.max(0.0, now - chargeStartTime);
@@ -2210,6 +2215,23 @@ function renderScoreboard(scores) {
 	html += '</div>';
 
 	scoresDiv.innerHTML = html;
+	// After rendering, ensure the charge bar sits right below the score UI
+	positionChargeBarUnderScore();
+}
+
+// Helper: position charge bar right under the scoreboard at the top
+function positionChargeBarUnderScore() {
+	try {
+		if (!chargeBar || !scoresDiv) return;
+		var rect = scoresDiv.getBoundingClientRect();
+		// Place 8px below the bottom of the scoreboard box
+		var y = Math.max(0, Math.round(rect.bottom + 8));
+		chargeBar.style.top = y + 'px';
+		chargeBar.style.left = '50%';
+		chargeBar.style.transform = 'translateX(-50%)';
+		// Ensure bottom is not set anymore
+		chargeBar.style.bottom = '';
+	} catch(e) {}
 }
 
 // ---------- Text-to-Speech (TTS) helpers ----------
