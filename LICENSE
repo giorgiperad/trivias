@@ -1,55 +1,21 @@
-LICENSE
+MIT License
 
-Copyright (c) 2025 NARBE LLC. All Rights Reserved.
+Copyright (c) 2025 NARBE Foundation
 
-This software and associated documentation files (the “Software”) are the exclusive intellectual property of NARBE LLC and are licensed solely and exclusively to The NARBE Foundation, a registered 501(c)(3) nonprofit organization in the United States.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. Permitted Use
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Individuals and organizations are permitted to:
-
-Use and modify the Software for personal, educational, or non-commercial purposes only.
-
-Retain and display this copyright notice and license text in all copies or derivative works.
-
-2. Restrictions
-
-Without the express written permission of NARBE LLC, you may not:
-
-Use, copy, modify, or distribute the Software for commercial or for-profit purposes.
-
-Sell, sublicense, lease, or redistribute the Software or any derivative works.
-
-Remove or alter any copyright, attribution, or license notices.
-
-Claim authorship or ownership of the Software or its components.
-
-3. Ownership and Exclusive License
-
-All rights, title, and interest in the Software remain with NARBE LLC.
-Exclusive operational and distribution rights are granted to The NARBE Foundation solely for the purposes of nonprofit use, public benefit, and accessibility-related initiatives.
-
-This license does not transfer ownership of the Software or its underlying intellectual property.
-
-4. Warranty Disclaimer
-
-THE SOFTWARE IS PROVIDED “AS IS,” WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
-IN NO EVENT SHALL NARBE LLC OR THE NARBE FOUNDATION BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
-
-5. Governing Law
-
-This License shall be governed by and construed in accordance with the laws of the State of Rhode Island, USA, without regard to conflict of law principles.
-
-6. Contact Information
-
-For licensing, permissions, or inquiries, please contact:
-
-NARBE LLC
-Website: https://narbehouse.com
-Email: contact@narbehouse.com
-
-
----
-
-Would you like me to also create a short version for the top of your source files (like main.py or index.html) so every file carries a lightweight copyright header that matches this license? That helps reinforce coverage even if someone copies part of your code.
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
