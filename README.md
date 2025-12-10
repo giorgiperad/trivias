@@ -12,7 +12,7 @@ The NARBE Foundation provides this software as-is. We do not offer managed hosti
 
 Users requiring professional setup, white-labeling, or guaranteed uptime may contact **NARBE House LLC**, an independent company founded by the creators of this project.
 
-*(**Transparency Note:** NARBE House LLC is a for-profit entity separate from the Foundation. Proceeds from commercial services help support the developers who maintain this open-source project.)*
+*(**Transparency Note:** NARBE LLC is a for-profit entity separate from the Foundation. Proceeds from commercial services help support the developers who maintain this open-source project.)*
 
 👉 **[Visit Narbehouse.com for Professional Services](https://narbehouse.com)**
 
