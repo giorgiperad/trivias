@@ -1,35 +1,39 @@
-DISCLAIMER AND TERMS OF USE
+Terms of Use & License
+Effective Date: December 2025 Owner: NARBE Foundation
 
-This software and any accompanying resources, including documentation, images, audio, and configuration files (collectively, the “Software”), are provided by NARBE LLC and licensed exclusively to the NARBE Foundation, a 501(c)(3) nonprofit organization.
+This software is an open-source initiative managed by the NARBE Foundation, a 501(c)(3) nonprofit organization dedicated to accessibility.
 
-BY ACCESSING OR USING THE SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:
+1. License (Open Source)
+This software is licensed under the MIT License. This means you are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to the conditions below.
 
-1. **Permitted Use**
-   - You may use, modify, and adapt this Software solely for **personal, educational, or non-commercial purposes**.
-   - This Software may be used for **individual, patient-to-patient** use cases (e.g., a family adapting the software for their own needs).
-   - Caregivers, educators, and therapists may use this Software for **one-on-one use** with specific individuals, as long as no fee is charged for the software and it is not part of a larger commercial service.
+The MIT License
 
-2. **Prohibited Use**
-   - Commercial use of any kind is strictly prohibited without express written permission from NARBE LLC.
-   - The Software may not be:
-     - Sold, sublicensed, or redistributed.
-     - Pre-installed or bundled on hardware or tablets intended for sale.
-     - Used in hospitals, clinics, schools, or therapy centers as part of a **paid program**, **clinical system**, or **commercial distribution**.
-     - Deployed at scale for multiple patients or clients across an institution or service provider.
+Copyright (c) 2025 NARBE Foundation
 
-3. **No Warranty**
-   - THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
-   - NARBE LLC and the NARBE Foundation make no guarantees regarding the accuracy, reliability, or safety of the Software.
-   - You assume full responsibility for the use of this Software.
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-4. **Limitation of Liability**
-   - Under no circumstances shall NARBE LLC or the NARBE Foundation be liable for any claims, damages, or other liabilities, whether in an action of contract, tort, or otherwise, arising from your use of the Software.
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-5. **License Enforcement**
-   - Any use of the Software outside the scope defined in this agreement may constitute a violation of copyright and licensing terms and may result in revocation of your rights to use the Software.
+2. Commercial Use & Professional Support
+While this software is free to download and use, the NARBE Foundation provides it "as is" and does not offer managed hosting, custom installation, or Service Level Agreements (SLAs).
 
-6. **Attribution**
-   - If you adapt or share the Software for non-commercial purposes, you must retain the original copyright notice and licensing terms.
+For Commercial & Clinical Deployments: Organizations requiring professional setup, white-labeling, HIPAA-compliant hosting, or guaranteed uptime are encouraged to contact our technology partner:
 
-For licensing or permission inquiries, please contact:
-https://narbehouse.com
+NARBE House LLC Professional Setup, Custom Hardware Kits, and Support Visit Narbehouse.com
+
+(Note: NARBE House LLC is a separate for-profit entity founded by the creators of this project. Proceeds from commercial services help support the developers who maintain this open-source code.)
+
+3. Disclaimer of Warranty
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND.
+
+No Medical Advice: This software is an accessibility tool, not a medical device. It should not be used as a substitute for professional medical advice, diagnosis, or treatment.
+
+No Guarantees: The NARBE Foundation and its contributors make no guarantees regarding the accuracy, reliability, or safety of the Software in clinical settings.
+
+Use at Your Own Risk: You assume full responsibility for the configuration and use of this Software with patients or family members.
+
+4. Limitation of Liability
+In no event shall the NARBE Foundation, NARBE House LLC, or any copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
+
+5. Attribution
+If you adapt or share this Software, you must retain the original copyright notice ("Copyright (c) 2025 NARBE Foundation") in the source code. We kindly ask that you credit the NARBE Foundation in your user interface or "About" screen to help us reach more families in need.
