@@ -9,6 +9,10 @@ let currentType = 'none'; // 'youtube' or 'audio'
 let currentIndex = -1;
 let consecutiveErrors = 0; // Track consecutive errors to prevent infinite loops
 
+// State Tracking
+let isPlayingState = false;
+let isLoadingState = false;
+
 // Themes
 const themes = ['', 'theme-sunset', 'theme-dark', 'theme-forest', 'theme-candy'];
 let currentThemeIndex = 0;
@@ -26,20 +30,25 @@ async function loadSettings() {
         console.log("Loading playlist from LocalStorage");
         playlist = JSON.parse(savedPlaylist);
     } else {
-        console.log("Loading default playlist from JSON");
-        try {
-            const response = await fetch('playlist.json');
-            const data = await response.json();
-            // Extract IDs from the JSON URLs immediately to match our format
-            playlist = data.map(url => {
-                const id = extractVideoID(url);
-                return id ? id : url;
-            });
-        } catch (error) {
-            console.error("Failed to load playlist.json", error);
-            // Fallback if JSON fails
-            playlist = []; 
-        }
+        await loadPlaylistFromJson();
+    }
+}
+
+async function loadPlaylistFromJson() {
+    console.log("Loading default playlist from JSON");
+    try {
+        // Add timestamp to prevent caching
+        const response = await fetch('playlist.json?t=' + Date.now());
+        const data = await response.json();
+        // Extract IDs from the JSON URLs immediately to match our format
+        playlist = data.map(url => {
+            const id = extractVideoID(url);
+            return id ? id : url;
+        });
+    } catch (error) {
+        console.error("Failed to load playlist.json", error);
+        // Fallback if JSON fails
+        playlist = []; 
     }
 }
 
@@ -91,12 +100,16 @@ function onPlayerStateChange(event) {
         playerWrapper.classList.add('active');
         document.body.classList.add('is-playing'); // Start BG animation
         updateStatus("Playing YouTube...");
+        isPlayingState = true;
+        isLoadingState = false;
     } else if (event.data === YT.PlayerState.PAUSED) {
         document.body.classList.remove('is-playing'); // Stop BG animation
         updateStatus("Paused");
+        isPlayingState = false;
     } else if (event.data === YT.PlayerState.ENDED) {
         document.body.classList.remove('is-playing'); // Stop BG animation
         updateStatus("Ended");
+        isPlayingState = false;
         playNextSong(); // Auto-play next
     }
 }
@@ -109,18 +122,22 @@ audioPlayer.addEventListener('play', () => {
     document.getElementById('player-wrapper').classList.remove('active');
     document.body.classList.add('is-playing'); // Start BG animation
     updateStatus("Playing Audio File...");
+    isPlayingState = true;
+    isLoadingState = false;
 });
 
 audioPlayer.addEventListener('pause', () => {
     document.querySelector('.visualizer').classList.remove('playing');
     document.body.classList.remove('is-playing'); // Stop BG animation
     updateStatus("Paused");
+    isPlayingState = false;
 });
 
 audioPlayer.addEventListener('ended', () => {
     document.querySelector('.visualizer').classList.remove('playing');
     document.body.classList.remove('is-playing'); // Stop BG animation
     updateStatus("Ended");
+    isPlayingState = false;
     playNextSong(); // Auto-play next
 });
 
@@ -170,6 +187,9 @@ function stopAll() {
     document.querySelector('.visualizer').classList.remove('active');
     document.getElementById('player-wrapper').classList.remove('active');
     document.body.classList.remove('is-playing'); // Stop BG animation
+    
+    isPlayingState = false;
+    isLoadingState = false;
 }
 
 function playNextSong() {
@@ -198,6 +218,8 @@ function playSongAtIndex(index) {
     currentIndex = index;
     currentTrack = playlist[currentIndex];
     console.log("Playing:", currentTrack);
+    
+    isLoadingState = true; // Mark as loading
 
     // Determine Type
     if (isYouTubeID(currentTrack)) {
@@ -253,6 +275,7 @@ function playSongAtIndex(index) {
         audioPlayer.play().catch(e => {
             console.error("Play failed", e);
             updateStatus("Click to enable audio");
+            isLoadingState = false; // Reset if failed
         });
     }
 }
@@ -389,10 +412,8 @@ function handlePressEnd() {
 }
 
 function handleShortPress() {
-    // Check if playing
-    const isPlaying = document.body.classList.contains('is-playing');
-    
-    if (isPlaying) {
+    // Check if playing OR loading
+    if (isPlayingState || isLoadingState) {
         // 1st Press: Stop/Pause
         stopAll();
         updateStatus("Stopped (Press again for Next)");
@@ -614,5 +635,20 @@ document.getElementById('save-playlist-btn').addEventListener('click', function(
         
     } else {
         alert('Playlist is empty.');
+    }
+});
+
+// Reset Playlist
+document.getElementById('reset-playlist-btn').addEventListener('click', function() {
+    if(confirm("Reset playlist to defaults from playlist.json? This will clear your custom changes.")) {
+        localStorage.removeItem('steviePlaylist');
+        loadPlaylistFromJson().then(() => {
+            alert("Playlist reset to defaults!");
+            // Refresh slots by re-clicking edit button logic (simulated)
+            // We need to close and reopen or just refresh the view.
+            // Simplest is to close modal.
+            editModal.classList.add('hidden');
+            currentIndex = -1; // Reset playback index
+        });
     }
 });
