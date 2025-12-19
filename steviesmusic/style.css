@@ -304,21 +304,24 @@ textarea {
     /* Button Look */
     background-color: var(--card-bg); /* Use theme card background */
     border: 4px solid var(--primary-color);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    border-bottom-width: 12px; /* Thicker bottom for 3D effect */
+    box-shadow: 0 15px 25px rgba(0,0,0,0.2);
     position: relative;
     overflow: hidden;
     box-sizing: border-box; /* Ensure padding doesn't overflow width */
+    transition: transform 0.1s, border-bottom-width 0.1s, box-shadow 0.1s;
 }
 
 #main-click-area:hover {
     transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 20px 30px rgba(0,0,0,0.3);
     border-color: var(--accent-color);
 }
 
 #main-click-area:active,
 #main-click-area.active-state {
-    transform: translateY(2px);
+    transform: translateY(6px); /* Move down */
+    border-bottom-width: 6px; /* Shrink border to simulate press */
     box-shadow: 0 5px 10px rgba(0,0,0,0.2);
     background-color: rgba(0,0,0,0.05); /* Slight darken on click */
 }
@@ -423,3 +426,100 @@ body.is-playing .bg-bar {
     0%, 100% { height: 10%; }
     50% { height: 60%; } /* Go up to 60% of screen height */
 }
+/* Link Slots */
+#link-slots-container {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.link-slot {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 5px;
+    align-items: center;
+}
+
+.link-input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.remove-link-btn {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+
+.remove-link-btn:hover {
+    background-color: #cc0000;
+}
+
+
+/* Mobile Responsiveness */
+@media (max-width: 600px) {
+    .title-stevie {
+        font-size: 60px; /* Reduce from 120px */
+        letter-spacing: 2px;
+    }
+
+    .title-music {
+        font-size: 18px; /* Reduce from 30px */
+        letter-spacing: 8px; /* Reduce from 18px */
+    }
+
+    .container {
+        width: 95%;
+    }
+
+    #main-click-area {
+        padding: 20px; /* Reduce padding */
+    }
+
+    .click-instruction {
+        font-size: 18px; /* Reduce from 24px */
+    }
+
+    header {
+        padding: 10px;
+    }
+
+    header button {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    /* Adjust visualizer bars for mobile */
+    .visualizer {
+        height: 60px;
+    }
+    
+    .bar {
+        width: 6px;
+    }
+}
+
+
+/* Instruction Sub-text */
+.click-instruction div {
+    font-weight: normal;
+    letter-spacing: 1px;
+}
+
+@media (max-width: 600px) {
+    .click-instruction div {
+        font-size: 10px !important; /* Ensure readability on mobile */
+    }
+}
+

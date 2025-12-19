@@ -1,10 +1,6 @@
-// Default playlist (can be overwritten by user)
-// Supports YouTube IDs or direct Audio URLs (mp3, wav, ogg)
-let playlist = [
-    'dQw4w9WgXcQ', // Rick Roll (Example)
-    'jNQXAC9IVRw', // Me at the zoo (Example)
-    'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' // Test MP3
-];
+// Default playlist (will be loaded from JSON if LocalStorage is empty)
+let playlist = [];
+let localFileNames = {}; // Store names for blob URLs
 
 let player = null; // YouTube Player Instance
 let audioPlayer = new Audio(); // HTML5 Audio Player
@@ -17,17 +13,38 @@ let consecutiveErrors = 0; // Track consecutive errors to prevent infinite loops
 const themes = ['', 'theme-sunset', 'theme-dark', 'theme-forest', 'theme-candy'];
 let currentThemeIndex = 0;
 
-// Load settings from LocalStorage
-const savedPlaylist = localStorage.getItem('steviePlaylist');
-if (savedPlaylist) {
-    playlist = JSON.parse(savedPlaylist);
+// Load settings
+async function loadSettings() {
+    const savedTheme = localStorage.getItem('stevieTheme');
+    if (savedTheme) {
+        currentThemeIndex = parseInt(savedTheme, 10);
+        applyTheme();
+    }
+
+    const savedPlaylist = localStorage.getItem('steviePlaylist');
+    if (savedPlaylist) {
+        console.log("Loading playlist from LocalStorage");
+        playlist = JSON.parse(savedPlaylist);
+    } else {
+        console.log("Loading default playlist from JSON");
+        try {
+            const response = await fetch('playlist.json');
+            const data = await response.json();
+            // Extract IDs from the JSON URLs immediately to match our format
+            playlist = data.map(url => {
+                const id = extractVideoID(url);
+                return id ? id : url;
+            });
+        } catch (error) {
+            console.error("Failed to load playlist.json", error);
+            // Fallback if JSON fails
+            playlist = []; 
+        }
+    }
 }
 
-const savedTheme = localStorage.getItem('stevieTheme');
-if (savedTheme) {
-    currentThemeIndex = parseInt(savedTheme, 10);
-    applyTheme();
-}
+// Initialize
+loadSettings();
 
 // --- YouTube API Setup ---
 // Load the IFrame Player API code asynchronously.
@@ -160,15 +177,25 @@ function playNextSong() {
         alert("Playlist is empty! Add some songs in Edit mode.");
         return;
     }
-
-    stopAll();
-
-    // Sequential Playback
-    currentIndex++;
-    if (currentIndex >= playlist.length) {
-        currentIndex = 0; // Loop back to start
+    let nextIndex = currentIndex + 1;
+    if (nextIndex >= playlist.length) {
+        nextIndex = 0; // Loop back to start
     }
+    playSongAtIndex(nextIndex);
+}
 
+function playPreviousSong() {
+    if (playlist.length === 0) return;
+    let prevIndex = currentIndex - 1;
+    if (prevIndex < 0) {
+        prevIndex = playlist.length - 1; // Loop to end
+    }
+    playSongAtIndex(prevIndex);
+}
+
+function playSongAtIndex(index) {
+    stopAll();
+    currentIndex = index;
     currentTrack = playlist[currentIndex];
     console.log("Playing:", currentTrack);
 
@@ -181,7 +208,6 @@ function playNextSong() {
         document.getElementById('player-wrapper').classList.add('active');
 
         // Create new YouTube Player instance
-        // This is the "flawless" method from bennyshub: destroy and recreate
         if (window.YT && window.YT.Player) {
             player = new YT.Player('player', {
                 height: '100%',
@@ -194,7 +220,7 @@ function playNextSong() {
                     'fs': 0,
                     'modestbranding': 1,
                     'disablekb': 1,
-                    'origin': window.location.origin, // Critical for API security
+                    'origin': window.location.origin,
                     'enablejsapi': 1
                 },
                 events: {
@@ -206,8 +232,8 @@ function playNextSong() {
         } else {
             console.warn("YouTube API not ready yet. Retrying in 1s...");
             setTimeout(() => {
-                currentIndex--; // Retry same song
-                playNextSong();
+                // Retry same song
+                playSongAtIndex(index);
             }, 1000);
         }
 
@@ -218,6 +244,12 @@ function playNextSong() {
         const audioSrc = processAudioUrl(currentTrack);
         audioPlayer.src = audioSrc;
         
+        if (localFileNames[currentTrack]) {
+            updateStatus(`Playing: ${localFileNames[currentTrack]}`);
+        } else {
+            updateStatus("Playing Audio File...");
+        }
+
         audioPlayer.play().catch(e => {
             console.error("Play failed", e);
             updateStatus("Click to enable audio");
@@ -309,32 +341,112 @@ function playClickSound() {
     oscillator.stop(audioCtx.currentTime + 0.1);
 }
 
-function triggerButtonVisual() {
+function triggerButtonVisual(active) {
     const btn = document.getElementById('main-click-area');
-    btn.classList.add('active-state');
-    setTimeout(() => {
+    if (active) {
+        btn.classList.add('active-state');
+    } else {
         btn.classList.remove('active-state');
-    }, 100);
+    }
+}
+
+// --- Interaction Logic (Long Press / Short Press) ---
+let pressTimer = null;
+let longPressTriggered = false;
+const LONG_PRESS_DURATION = 3000; // 3 seconds
+
+function handlePressStart() {
+    if (pressTimer) return; // Already pressed
+    longPressTriggered = false;
+    triggerButtonVisual(true); // Keep visual active
+    
+    pressTimer = setTimeout(() => {
+        longPressTriggered = true;
+        playClickSound(); // Feedback
+        updateStatus("Long Press: Playing Previous...");
+        playPreviousSong();
+        triggerButtonVisual(false); // Release visual
+        pressTimer = null; // Reset timer variable
+    }, LONG_PRESS_DURATION);
+}
+
+function handlePressEnd() {
+    // If timer was running, clear it
+    if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    }
+    
+    triggerButtonVisual(false);
+
+    if (!longPressTriggered) {
+        // Short Press Logic
+        playClickSound();
+        handleShortPress();
+    }
+    // Reset flag
+    longPressTriggered = false;
+}
+
+function handleShortPress() {
+    // Check if playing
+    const isPlaying = document.body.classList.contains('is-playing');
+    
+    if (isPlaying) {
+        // 1st Press: Stop/Pause
+        stopAll();
+        updateStatus("Stopped (Press again for Next)");
+    } else {
+        // 2nd Press (or from stopped): Play Next
+        playNextSong();
+    }
 }
 
 // Event Listeners
 
-// Spacebar to play/shuffle
+// Spacebar
 document.addEventListener('keydown', function(event) {
     if (event.code === 'Space') {
-        event.preventDefault();
         if (document.getElementById('edit-modal').classList.contains('hidden')) {
-            triggerButtonVisual();
-            playClickSound();
-            playNextSong();
+            event.preventDefault();
+            if (!event.repeat) { // Ignore auto-repeat
+                handlePressStart();
+            }
         }
     }
 });
 
-// Big Button Click (Now the Main Area)
-document.getElementById('main-click-area').addEventListener('click', function() {
-    playClickSound();
-    playNextSong();
+document.addEventListener('keyup', function(event) {
+    if (event.code === 'Space') {
+        if (document.getElementById('edit-modal').classList.contains('hidden')) {
+            event.preventDefault();
+            handlePressEnd();
+        }
+    }
+});
+
+// Big Button
+const mainBtn = document.getElementById('main-click-area');
+
+mainBtn.addEventListener('mousedown', handlePressStart);
+mainBtn.addEventListener('mouseup', handlePressEnd);
+mainBtn.addEventListener('mouseleave', () => {
+    // If mouse leaves, cancel everything
+    if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+        triggerButtonVisual(false);
+        longPressTriggered = false;
+    }
+});
+
+mainBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // Prevent mouse emulation
+    handlePressStart();
+});
+mainBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handlePressEnd();
 });
 
 // Theme Button
@@ -365,6 +477,7 @@ mp3Upload.addEventListener('change', function(event) {
             const file = files[i];
             const objectURL = URL.createObjectURL(file);
             tempLocalFiles.push(objectURL);
+            localFileNames[objectURL] = file.name;
             
             // Add to UI list
             const li = document.createElement('div');
@@ -379,38 +492,72 @@ mp3Upload.addEventListener('change', function(event) {
 
 // Edit Button
 const editModal = document.getElementById('edit-modal');
-const playlistInput = document.getElementById('playlist-input');
+const linkSlotsContainer = document.getElementById('link-slots-container');
+
+function createLinkSlot(value = '') {
+    const div = document.createElement('div');
+    div.className = 'link-slot';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'link-input';
+    input.placeholder = 'https://...';
+    input.value = value;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-link-btn';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.title = 'Remove Link';
+    removeBtn.onclick = function() {
+        div.remove();
+    };
+    
+    div.appendChild(input);
+    div.appendChild(removeBtn);
+    linkSlotsContainer.appendChild(div);
+}
+
+document.getElementById('add-link-btn').addEventListener('click', function() {
+    createLinkSlot();
+});
 
 document.getElementById('edit-btn').addEventListener('click', function() {
-    // Populate textarea with URLs only
+    // Clear existing slots
+    linkSlotsContainer.innerHTML = '';
+
+    // Populate slots with URLs only
     const urls = playlist.filter(item => !item.startsWith('blob:')).map(item => {
         if (isYouTubeID(item)) {
             return `https://www.youtube.com/watch?v=${item}`;
         }
         return item;
     });
-    playlistInput.value = urls.join('\n');
+    
+    urls.forEach(url => createLinkSlot(url));
+    
+    // Always add one empty slot at the end for convenience
+    if (urls.length === 0) {
+        createLinkSlot();
+    }
     
     // Populate local file list
     const listEl = document.getElementById('local-file-list');
     listEl.innerHTML = '';
     const blobs = playlist.filter(item => item.startsWith('blob:'));
     
-    if (blobs.length === 0 && tempLocalFiles.length === 0) {
+    if (blobs.length === 0) {
         listEl.innerHTML = '<em style="color: #888;">No local files added yet.</em>';
     } else {
-        // Show existing blobs (we don't have filenames for existing blobs easily unless we stored them, 
-        // but for now let's just show "Local File")
-        blobs.forEach((blob, index) => {
+        blobs.forEach(blobUrl => {
             const li = document.createElement('div');
-            li.textContent = `🎵 Local File ${index + 1}`;
+            const name = localFileNames[blobUrl] || "Local File";
+            li.textContent = `🎵 ${name}`;
             li.style.padding = '2px 0';
             listEl.appendChild(li);
         });
     }
     
-    // Clear temp files on open? No, maybe keep them if user closed without saving? 
-    // Let's clear temp files to avoid confusion.
+    // Clear temp files on open
     tempLocalFiles = [];
     
     editModal.classList.remove('hidden');
@@ -423,13 +570,12 @@ document.getElementById('close-modal').addEventListener('click', function() {
 
 // Save Playlist
 document.getElementById('save-playlist-btn').addEventListener('click', function() {
-    const rawText = playlistInput.value;
-    const lines = rawText.split('\n');
     const newPlaylist = [];
-
-    // Process Text Area
-    lines.forEach(line => {
-        const trimmed = line.trim();
+    
+    // Process Link Slots
+    const inputs = document.querySelectorAll('.link-input');
+    inputs.forEach(input => {
+        const trimmed = input.value.trim();
         if (!trimmed) return;
 
         // Check if it's a YouTube URL

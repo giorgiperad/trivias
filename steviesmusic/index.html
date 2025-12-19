@@ -66,7 +66,13 @@
                 </div>
             </div>
             
-            <div class="click-instruction">CLICK ANYWHERE TO PLAY NEXT</div>
+            <div class="click-instruction">
+                Click Anywhere or Use Spacebar
+                <div style="font-size: 0.5em; margin-top: 10px; opacity: 0.8; line-height: 1.4;">
+                    Short Press = Stop • 2nd Press = Next<br>
+                    Long Press (3s) = Previous
+                </div>
+            </div>
         </div>
 
         <!-- Old button removed, functionality moved to main-click-area -->
@@ -79,8 +85,9 @@
                 
                 <div class="edit-section">
                     <h3>1. Web Links</h3>
-                    <p>Enter YouTube, Google Drive, or Direct Audio Links (one per line):</p>
-                    <textarea id="playlist-input" rows="6" placeholder="https://www.youtube.com/watch?v=...&#10;https://drive.google.com/file/d/.../view"></textarea>
+                    <p>Enter YouTube, Google Drive, or Direct Audio Links:</p>
+                    <div id="link-slots-container"></div>
+                    <button id="add-link-btn" style="margin-top: 10px; padding: 5px 10px; cursor: pointer;">+ Add Link</button>
                 </div>
 
                 <div class="edit-section">
