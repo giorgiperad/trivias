@@ -1,0 +1,425 @@
+:root {
+    /* Default Theme (Theme 1: Ocean) */
+    --bg-color: #f0f8ff;
+    --text-color: #333;
+    --primary-color: #007bff;
+    --secondary-color: #0056b3;
+    --accent-color: #ff4081;
+    --modal-bg: rgba(0,0,0,0.6);
+    --card-bg: white;
+}
+
+/* Theme 2: Sunset */
+body.theme-sunset {
+    --bg-color: #ffe0b2;
+    --text-color: #5d4037;
+    --primary-color: #e65100; /* Darker orange for better contrast */
+    --secondary-color: #f57c00;
+    --accent-color: #d84315;
+}
+
+/* Theme 3: Dark Mode */
+body.theme-dark {
+    --bg-color: #121212;
+    --text-color: #e0e0e0;
+    --primary-color: #bb86fc;
+    --secondary-color: #3700b3;
+    --accent-color: #03dac6;
+    --card-bg: #1e1e1e;
+}
+
+/* Theme 4: Forest */
+body.theme-forest {
+    --bg-color: #e8f5e9;
+    --text-color: #1b5e20;
+    --primary-color: #2e7d32; /* Darker green */
+    --secondary-color: #2e7d32;
+    --accent-color: #8bc34a;
+}
+
+/* Theme 5: Candy */
+body.theme-candy {
+    --bg-color: #fce4ec;
+    --text-color: #880e4f;
+    --primary-color: #c2185b; /* Darker pink */
+    --secondary-color: #c2185b;
+    --accent-color: #9c27b0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+header {
+    width: 100%;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    box-sizing: border-box;
+}
+
+.header-left {
+    display: flex;
+    gap: 10px;
+}
+
+header button {
+    padding: 10px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+header button:hover {
+    background-color: var(--secondary-color);
+}
+
+.container {
+    width: 90%;
+    max-width: 800px;
+    text-align: center;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.title-container {
+    margin-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 0.8;
+}
+
+.title-stevie {
+    font-size: 120px;
+    font-weight: 900;
+    margin: 0;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: var(--text-color);
+}
+
+.title-music {
+    font-size: 30px;
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: 18px; /* Spacing to match width of STEVIE'S */
+    text-transform: uppercase;
+    color: var(--primary-color);
+}
+
+/* Media Container */
+#media-container {
+    width: 100%;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+/* Visualizer Styles */
+.visualizer {
+    display: flex;
+    align-items: flex-end;
+    height: 100px;
+    gap: 10px;
+    /* Use visibility/position to hide instead of display:none to keep layout stable if needed, 
+       but for swapping with player, display:none is usually fine. 
+       However, let's ensure player is always 'ready'. */
+    display: none; 
+}
+
+.visualizer.active {
+    display: flex;
+}
+
+/* Player Wrapper */
+#player-wrapper {
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 16/9;
+    background-color: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    /* Use visibility hidden to keep it initialized */
+    visibility: hidden;
+    position: absolute; /* Default to absolute so it doesn't take up space */
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+
+#player-wrapper.active {
+    visibility: visible;
+    position: relative;
+    opacity: 1;
+}
+
+#player {
+    width: 100%;
+    height: 100%;
+}
+
+.bar {
+    width: 20px;
+    height: 20px;
+    background-color: var(--accent-color);
+    border-radius: 5px 5px 0 0;
+    transition: height 0.1s ease;
+}
+
+/* Animation for playing state */
+.visualizer.playing .bar {
+    animation: bounce 1s infinite ease-in-out;
+}
+
+.visualizer.playing .bar:nth-child(1) { animation-duration: 0.8s; }
+.visualizer.playing .bar:nth-child(2) { animation-duration: 1.1s; }
+.visualizer.playing .bar:nth-child(3) { animation-duration: 1.3s; }
+.visualizer.playing .bar:nth-child(4) { animation-duration: 0.9s; }
+.visualizer.playing .bar:nth-child(5) { animation-duration: 1.2s; }
+.visualizer.playing .bar:nth-child(6) { animation-duration: 1.0s; }
+.visualizer.playing .bar:nth-child(7) { animation-duration: 1.4s; }
+.visualizer.playing .bar:nth-child(8) { animation-duration: 0.7s; }
+.visualizer.playing .bar:nth-child(9) { animation-duration: 1.1s; }
+.visualizer.playing .bar:nth-child(10) { animation-duration: 0.9s; }
+
+@keyframes bounce {
+    0%, 100% { height: 20px; }
+    50% { height: 100px; }
+}
+
+/* Big Play Button (Legacy - kept for reference if needed, but hidden/unused) */
+#big-play-btn {
+    display: none;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 500px;
+    position: relative;
+    text-align: left;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.edit-section {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.edit-section h3 {
+    margin-top: 0;
+    font-size: 18px;
+    color: var(--primary-color);
+}
+
+.edit-section p {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#close-modal {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    resize: vertical;
+    box-sizing: border-box;
+    font-family: monospace;
+}
+
+#save-playlist-btn {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+/* Main Click Area (The Big Button) */
+#main-click-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 30px;
+    border-radius: 30px;
+    transition: all 0.2s ease;
+    
+    /* Button Look */
+    background-color: var(--card-bg); /* Use theme card background */
+    border: 4px solid var(--primary-color);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box; /* Ensure padding doesn't overflow width */
+}
+
+#main-click-area:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    border-color: var(--accent-color);
+}
+
+#main-click-area:active,
+#main-click-area.active-state {
+    transform: translateY(2px);
+    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    background-color: rgba(0,0,0,0.05); /* Slight darken on click */
+}
+
+/* Instruction Text */
+.click-instruction {
+    margin-top: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    animation: pulse 2s infinite;
+    pointer-events: none; /* Let clicks pass through */
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+/* Player Overlay */
+#player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Above the iframe */
+    background: transparent;
+}
+
+/* Local File List Styles */
+#local-file-list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    padding: 5px;
+    margin-top: 5px;
+    background: rgba(255,255,255,0.05);
+}
+
+#modal-add-mp3-btn {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Background Visualizer */
+.background-visualizer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    pointer-events: none;
+    opacity: 0.1; /* Very subtle */
+    padding-bottom: 0;
+}
+
+.bg-bar {
+    width: 5%;
+    height: 10%; /* Start low */
+    background-color: var(--primary-color);
+    border-radius: 10px 10px 0 0;
+    transition: height 0.2s ease, background-color 0.3s;
+}
+
+/* When playing, animate the background bars */
+body.is-playing .bg-bar {
+    animation: bg-bounce 2s infinite ease-in-out;
+}
+
+/* Randomize animation delays for a wave effect */
+.bg-bar:nth-child(1) { animation-duration: 1.8s; animation-delay: 0.1s; }
+.bg-bar:nth-child(2) { animation-duration: 2.2s; animation-delay: 0.3s; }
+.bg-bar:nth-child(3) { animation-duration: 1.6s; animation-delay: 0.5s; }
+.bg-bar:nth-child(4) { animation-duration: 2.0s; animation-delay: 0.2s; }
+.bg-bar:nth-child(5) { animation-duration: 2.4s; animation-delay: 0.4s; }
+.bg-bar:nth-child(6) { animation-duration: 1.9s; animation-delay: 0.1s; }
+.bg-bar:nth-child(7) { animation-duration: 2.1s; animation-delay: 0.6s; }
+.bg-bar:nth-child(8) { animation-duration: 1.7s; animation-delay: 0.3s; }
+.bg-bar:nth-child(9) { animation-duration: 2.3s; animation-delay: 0.5s; }
+.bg-bar:nth-child(10) { animation-duration: 1.8s; animation-delay: 0.2s; }
+.bg-bar:nth-child(11) { animation-duration: 2.2s; animation-delay: 0.4s; }
+.bg-bar:nth-child(12) { animation-duration: 1.6s; animation-delay: 0.1s; }
+.bg-bar:nth-child(13) { animation-duration: 2.0s; animation-delay: 0.5s; }
+.bg-bar:nth-child(14) { animation-duration: 2.4s; animation-delay: 0.3s; }
+.bg-bar:nth-child(15) { animation-duration: 1.9s; animation-delay: 0.6s; }
+
+@keyframes bg-bounce {
+    0%, 100% { height: 10%; }
+    50% { height: 60%; } /* Go up to 60% of screen height */
+}

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stevie's Music Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Background Visualizer -->
+    <div class="background-visualizer">
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <button id="edit-btn">Edit Playlist</button>
+            <input type="file" id="mp3-upload" accept="audio/*" multiple style="display: none;">
+        </div>
+        <button id="theme-btn">Change Theme</button>
+    </header>
+
+    <div class="container">
+        <div id="main-click-area">
+            <div class="title-container">
+                <h1 class="title-stevie">STEVIE'S</h1>
+                <h2 class="title-music">MUSIC PLAYER</h2>
+                <p id="status-text" style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Ready</p>
+            </div>
+            
+            <div id="media-container">
+                <!-- Visualizer (for Audio) -->
+                <div class="visualizer">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+
+                <!-- YouTube Player (Visible now) -->
+                <div id="player-wrapper">
+                    <div id="player"></div>
+                    <!-- Overlay to capture clicks over the iframe -->
+                    <div id="player-overlay"></div>
+                </div>
+            </div>
+            
+            <div class="click-instruction">CLICK ANYWHERE TO PLAY NEXT</div>
+        </div>
+
+        <!-- Old button removed, functionality moved to main-click-area -->
+        <!-- <button id="big-play-btn">Press Spacebar to Play/Shuffle</button> -->
+
+        <div id="edit-modal" class="modal hidden">
+            <div class="modal-content">
+                <span id="close-modal">&times;</span>
+                <h2>Edit Playlist</h2>
+                
+                <div class="edit-section">
+                    <h3>1. Web Links</h3>
+                    <p>Enter YouTube, Google Drive, or Direct Audio Links (one per line):</p>
+                    <textarea id="playlist-input" rows="6" placeholder="https://www.youtube.com/watch?v=...&#10;https://drive.google.com/file/d/.../view"></textarea>
+                </div>
+
+                <div class="edit-section">
+                    <h3>2. Local Files</h3>
+                    <p>Add MP3/WAV files from your device:</p>
+                    <button id="modal-add-mp3-btn" style="background-color: #ddd; color: #333; margin-bottom: 10px;">Select Files...</button>
+                    <div id="local-file-list" style="max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 5px; margin-bottom: 10px; text-align: left; font-size: 14px;">
+                        <em style="color: #888;">No local files added yet.</em>
+                    </div>
+                </div>
+
+                <button id="save-playlist-btn">Save & Update Playlist</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
