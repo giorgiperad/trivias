@@ -180,13 +180,19 @@ function stopAll() {
         player = null;
     }
     
-    // Re-create the placeholder div for next time
+    // Reset player wrapper (clears Spotify iframe or old YT div)
     const wrapper = document.getElementById('player-wrapper');
-    if (!document.getElementById('player')) {
-        const div = document.createElement('div');
-        div.id = 'player';
-        wrapper.insertBefore(div, wrapper.firstChild);
-    }
+    wrapper.innerHTML = '';
+    
+    // Re-create the placeholder div for YouTube
+    const div = document.createElement('div');
+    div.id = 'player';
+    wrapper.appendChild(div);
+    
+    // Re-add overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'player-overlay';
+    wrapper.appendChild(overlay);
 
     // Stop Audio
     audioPlayer.pause();
@@ -268,6 +274,24 @@ function playSongAtIndex(index) {
             }, 1000);
         }
 
+    } else if (isSpotifyUrl(currentTrack)) {
+        currentType = 'spotify';
+        
+        // Show player wrapper
+        document.querySelector('.visualizer').classList.remove('active');
+        const playerWrapper = document.getElementById('player-wrapper');
+        playerWrapper.classList.add('active');
+        
+        // Create Spotify Iframe
+        const embedUrl = getSpotifyEmbedUrl(currentTrack);
+        // We replace the innerHTML, removing the #player div and #player-overlay
+        // This is fine because stopAll() restores them.
+        playerWrapper.innerHTML = `<iframe style="border-radius:12px" src="${embedUrl}" width="100%" height="100%" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+        
+        updateStatus("Playing Spotify (Auto-play limited)");
+        isLoadingState = false;
+        isPlayingState = true; // Assume playing for state logic
+        
     } else {
         // Assume Audio URL
         currentType = 'audio';
@@ -327,6 +351,24 @@ function extractVideoID(url) {
     // Let's use a simpler, more robust regex for ID extraction
     const idMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     return (idMatch && idMatch[1]) ? idMatch[1] : false;
+}
+
+function isSpotifyUrl(url) {
+    return url.includes('spotify.com');
+}
+
+function getSpotifyEmbedUrl(url) {
+    // Convert https://open.spotify.com/track/ID to https://open.spotify.com/embed/track/ID
+    // Also handles playlist, album, artist, episode, show
+    if (url.includes('/embed/')) return url; // Already embed
+    
+    const parts = url.split('spotify.com/');
+    if (parts.length > 1) {
+        // Remove query parameters if any, but keep the path
+        let path = parts[1].split('?')[0];
+        return `https://open.spotify.com/embed/${path}`;
+    }
+    return url;
 }
 
 function toggleTheme() {
@@ -613,11 +655,8 @@ document.getElementById('save-playlist-btn').addEventListener('click', function(
         if (ytId) {
             newPlaylist.push(ytId);
         } else {
-            if (trimmed.includes('spotify.com')) {
-                alert("Note: Spotify links are not supported directly.");
-            } else {
-                newPlaylist.push(trimmed);
-            }
+            // Allow Spotify and other links
+            newPlaylist.push(trimmed);
         }
     });
 
