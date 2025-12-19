@@ -17,6 +17,8 @@ let isLoadingState = false;
 const themes = ['', 'theme-sunset', 'theme-dark', 'theme-forest', 'theme-candy'];
 let currentThemeIndex = 0;
 
+const CONFIG_VERSION = '1.1'; // Increment this to force-reset user playlists to defaults
+
 // Load settings
 async function loadSettings() {
     const savedTheme = localStorage.getItem('stevieTheme');
@@ -25,12 +27,19 @@ async function loadSettings() {
         applyTheme();
     }
 
+    const savedVersion = localStorage.getItem('stevieConfigVersion');
     const savedPlaylist = localStorage.getItem('steviePlaylist');
-    if (savedPlaylist) {
+
+    // Only load from LocalStorage if the version matches
+    if (savedPlaylist && savedVersion === CONFIG_VERSION) {
         console.log("Loading playlist from LocalStorage");
         playlist = JSON.parse(savedPlaylist);
     } else {
+        console.log("Config version mismatch or no save found. Loading defaults.");
         await loadPlaylistFromJson();
+        // We don't automatically save to LS here, so we don't overwrite user's potential intent 
+        // until they explicitly save. But we do update the version.
+        localStorage.setItem('stevieConfigVersion', CONFIG_VERSION);
     }
 }
 
@@ -625,6 +634,7 @@ document.getElementById('save-playlist-btn').addEventListener('click', function(
         // Save only text items
         const textItems = playlist.filter(item => !item.startsWith('blob:'));
         localStorage.setItem('steviePlaylist', JSON.stringify(textItems));
+        localStorage.setItem('stevieConfigVersion', CONFIG_VERSION); // Update version on save
         
         alert(`Playlist updated! Total songs: ${playlist.length}`);
         editModal.classList.add('hidden');
