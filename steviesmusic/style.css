@@ -344,10 +344,16 @@ textarea {
     100% { opacity: 0.6; }
 }
 
-/* Player Overlay */
+/* Player Overlay - REMOVED to allow interaction */
 #player-overlay {
-    position: absolute;
-    top: 0;
+    display: none;
+}
+
+/* Ensure iframe is interactive but doesn't trigger parent click */
+#player-wrapper iframe, #player-wrapper #player {
+    pointer-events: auto;
+    z-index: 20;
+}
     left: 0;
     width: 100%;
     height: 100%;

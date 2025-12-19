@@ -292,6 +292,23 @@ function playSongAtIndex(index) {
         isLoadingState = false;
         isPlayingState = true; // Assume playing for state logic
         
+    } else if (isSoundCloudUrl(currentTrack)) {
+        currentType = 'soundcloud';
+        
+        // Show player wrapper
+        document.querySelector('.visualizer').classList.remove('active');
+        const playerWrapper = document.getElementById('player-wrapper');
+        playerWrapper.classList.add('active');
+        
+        // SoundCloud Embed
+        const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(currentTrack)}&color=%23ff5500&auto_play=true&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true`;
+        
+        playerWrapper.innerHTML = `<iframe width="100%" height="100%" scrolling="no" frameborder="no" allow="autoplay" src="${embedUrl}"></iframe>`;
+        
+        updateStatus("Playing SoundCloud...");
+        isLoadingState = false;
+        isPlayingState = true;
+
     } else {
         // Assume Audio URL
         currentType = 'audio';
@@ -355,6 +372,10 @@ function extractVideoID(url) {
 
 function isSpotifyUrl(url) {
     return url.includes('spotify.com');
+}
+
+function isSoundCloudUrl(url) {
+    return url.includes('soundcloud.com');
 }
 
 function getSpotifyEmbedUrl(url) {
