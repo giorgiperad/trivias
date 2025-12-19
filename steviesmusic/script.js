@@ -1,4 +1,5 @@
 // Default playlist (will be loaded from JSON if LocalStorage is empty)
+console.log("Stevie's Music Player v1.3 Loaded");
 let playlist = [];
 let localFileNames = {}; // Store names for blob URLs
 
@@ -294,6 +295,7 @@ function playSongAtIndex(index) {
         
     } else if (isSoundCloudUrl(currentTrack)) {
         currentType = 'soundcloud';
+        console.log("Detected SoundCloud URL");
         
         // Show player wrapper
         document.querySelector('.visualizer').classList.remove('active');
@@ -301,6 +303,7 @@ function playSongAtIndex(index) {
         playerWrapper.classList.add('active');
         
         // SoundCloud Embed
+        // Use visual=true for a better look, but ensure it fits
         const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(currentTrack)}&color=%23ff5500&auto_play=true&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true&visual=true`;
         
         playerWrapper.innerHTML = `<iframe width="100%" height="100%" scrolling="no" frameborder="no" allow="autoplay" src="${embedUrl}"></iframe>`;
@@ -312,6 +315,7 @@ function playSongAtIndex(index) {
     } else {
         // Assume Audio URL
         currentType = 'audio';
+        console.log("Assuming Audio URL");
         // Process URL (handle Google Drive links)
         const audioSrc = processAudioUrl(currentTrack);
         audioPlayer.src = audioSrc;
@@ -375,7 +379,7 @@ function isSpotifyUrl(url) {
 }
 
 function isSoundCloudUrl(url) {
-    return url.includes('soundcloud.com');
+    return url.includes('soundcloud.com') || url.includes('on.soundcloud.com');
 }
 
 function getSpotifyEmbedUrl(url) {
