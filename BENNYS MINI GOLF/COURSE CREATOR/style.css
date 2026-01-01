@@ -1,0 +1,158 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #111;
+    color: #eee;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    height: 100vh;
+}
+
+#sidebar {
+    width: 300px;
+    background-color: #222;
+    border-right: 1px solid #444;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+#canvas-container {
+    flex: 1;
+    background-color: #333;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+canvas {
+    background-color: #2E8B57; /* Match game grass */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+h2, h3 {
+    margin-top: 0;
+    color: #4facfe;
+}
+
+.section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #333;
+}
+
+.section.bottom {
+    margin-top: auto;
+    border-bottom: none;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: #aaa;
+}
+
+input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    background-color: #333;
+    border: 1px solid #555;
+    color: white;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button, .button {
+    background-color: #444;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: center;
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+button:hover, .button:hover {
+    background-color: #555;
+}
+
+button.primary {
+    background-color: #4facfe;
+    color: #000;
+    font-weight: bold;
+}
+
+button.primary:hover {
+    background-color: #74b9ff;
+}
+
+button.danger {
+    background-color: #ff6b6b;
+    color: white;
+}
+
+button.active {
+    background-color: #4facfe;
+    color: #000;
+    font-weight: bold;
+}
+
+.full-width {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.tool-btn {
+    padding: 15px 5px;
+    font-size: 13px;
+}
+
+.prop-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.prop-row label {
+    width: 80px;
+    margin-bottom: 0;
+}
+
+.prop-row input {
+    flex: 1;
+}
+
+#overlay-info {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0,0,0,0.7);
+    padding: 10px 20px;
+    border-radius: 20px;
+    pointer-events: none;
+}
