@@ -402,8 +402,12 @@ class Editor {
                 const newWall = { x: pos.x - 50, y: pos.y - 10, width: 100, height: 20, angle: 0 };
                 hole.walls.push(newWall);
                 this.selectedObjects = [newWall];
-                this.selectedTool = 'select'; // Switch to select after placing
-                document.querySelector('[data-tool="select"]').click();
+                
+                // Switch to select tool manually to avoid clearing selection
+                this.selectedTool = 'select';
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('[data-tool="select"]').classList.add('active');
+
                 this.interactionMode = 'DRAGGING';
                 this.dragStart = pos;
                 this.dragOffsets = [{ obj: newWall, dx: 50, dy: 10 }];
@@ -414,8 +418,12 @@ class Editor {
                 if (!hole.bridges) hole.bridges = [];
                 hole.bridges.push(newBridge);
                 this.selectedObjects = [newBridge];
+                
+                // Switch to select tool manually to avoid clearing selection
                 this.selectedTool = 'select';
-                document.querySelector('[data-tool="select"]').click();
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('[data-tool="select"]').classList.add('active');
+
                 this.interactionMode = 'DRAGGING';
                 this.dragStart = pos;
                 this.dragOffsets = [{ obj: newBridge, dx: 60, dy: 25 }];
@@ -426,8 +434,12 @@ class Editor {
                 if (!hole.trees) hole.trees = [];
                 hole.trees.push(newTree);
                 this.selectedObjects = [newTree];
+                
+                // Switch to select tool manually to avoid clearing selection
                 this.selectedTool = 'select';
-                document.querySelector('[data-tool="select"]').click();
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('[data-tool="select"]').classList.add('active');
+
                 this.interactionMode = 'DRAGGING';
                 this.dragStart = pos;
                 this.dragOffsets = [{ obj: newTree, dx: 0, dy: 0 }];
@@ -1102,6 +1114,29 @@ class Editor {
         const data = JSON.stringify(this.course, null, 2);
         const suggestedName = this.course.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.json';
 
+        // Try to save to server first
+        try {
+            const response = await fetch('/api/save_course', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    filename: suggestedName,
+                    data: this.course
+                })
+            });
+            
+            if (response.ok) {
+                alert('Course saved to server successfully!');
+                return;
+            } else {
+                console.warn('Server save failed, falling back to local save.');
+            }
+        } catch (e) {
+            console.warn('Server not reachable, falling back to local save.', e);
+        }
+
         try {
             if (window.showSaveFilePicker) {
                 const handle = await window.showSaveFilePicker({
@@ -1346,14 +1381,6 @@ class Editor {
                     this.ctx.fill();
                 }
                 
-                this.ctx.restore();
-            });
-        }
-                    this.ctx.beginPath();
-                    this.ctx.arc(t.x + Math.cos(angle)*r, t.y + Math.sin(angle)*r, 3, 0, Math.PI * 2);
-                    this.ctx.fill();
-                }
-
                 this.ctx.restore();
             });
         }
