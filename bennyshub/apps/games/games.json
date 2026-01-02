@@ -29,6 +29,13 @@
       "genres": ["Arcade", "Action"]
     },
     {
+      "id": "bennysminigolf",
+      "title": "Benny's Mini Golf",
+      "description": "Accessible mini golf game with multiple courses and custom level support.",
+      "path": "apps/games/BENNYSMINIGOLF/index.html",
+      "genres": ["Sports", "Simulation"]
+    },
+    {
       "id": "concentration",
       "title": "Concentration",
       "description": "Memory matching game with single & multiplayer modes.",
