@@ -1102,29 +1102,6 @@ class Editor {
         const data = JSON.stringify(this.course, null, 2);
         const suggestedName = this.course.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.json';
 
-        // Try to save to server first
-        try {
-            const response = await fetch('/api/save_course', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename: suggestedName,
-                    data: this.course
-                })
-            });
-            
-            if (response.ok) {
-                alert('Course saved to server successfully!');
-                return;
-            } else {
-                console.warn('Server save failed, falling back to local save.');
-            }
-        } catch (e) {
-            console.warn('Server not reachable, falling back to local save.', e);
-        }
-
         try {
             if (window.showSaveFilePicker) {
                 const handle = await window.showSaveFilePicker({
