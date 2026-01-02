@@ -330,7 +330,7 @@ class UIRenderer {
         this.ctx.font = 'bold 32px monospace';
         this.ctx.fillStyle = '#cccccc';
         this.ctx.shadowBlur = 10;
-        const finalScore = `Championship Game: ${playerScore} - ${computerScore}`;
+        const finalScore = `Championship Series Won!`;
         this.ctx.strokeText(finalScore, this.canvas.width / 2, boxY + 170);
         this.ctx.fillText(finalScore, this.canvas.width / 2, boxY + 170);
         

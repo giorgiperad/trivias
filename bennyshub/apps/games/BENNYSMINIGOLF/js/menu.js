@@ -11,7 +11,17 @@ class MenuSystem {
             'MAIN_MENU': [
                 { text: 'Play Game', action: () => this.showGameModeSelect() },
                 { text: 'Settings', action: () => this.showSettings() },
+                { text: 'Instructions', action: () => this.showInstructions() },
                 { text: 'Exit', action: () => this.exitGame() }
+            ],
+            'INSTRUCTIONS': [
+                { text: "Spacebar to Aim", selectable: false },
+                { text: "Enter to Charge and Putt", selectable: false },
+                { text: "Settings: Aimer Style, Thickness, Ball Color", selectable: false },
+                { text: "Casual Mode: Least strokes possible", selectable: false },
+                { text: "Challenge Mode: Complete within PAR or reset", selectable: false },
+                { text: "Multiplayer: Play with friends. Watch out for hazards! \u{1F642}", selectable: false },
+                { text: 'Back', action: () => this.goBack() }
             ],
             'PAUSE_MENU': [
                 { text: 'Continue Game', action: () => this.resumeGame() },
@@ -177,6 +187,17 @@ class MenuSystem {
         this.selectedIndex = 0;
         this.render();
         AudioSys.speak("Settings");
+    }
+
+    showInstructions() {
+        this.state = 'INSTRUCTIONS';
+        this.items = this.menus['INSTRUCTIONS'];
+        // Find the first selectable item (the Back button)
+        this.selectedIndex = this.items.findIndex(item => item.selectable !== false);
+        if (this.selectedIndex === -1) this.selectedIndex = 0;
+        
+        this.render();
+        AudioSys.speak("Instructions. Spacebar to Aim. Enter to Charge and Putt. Settings to change Aimer Style and Thickness, Ball color and other stuff. Casual Mode: try to get the least strokes possible. Challenge Mode: you must complete each hole within the PAR or the course will reset fully. Multiplayer: Play casually with friends. Be careful! You can knock others balls into hazards!");
     }
 
     loadCustomCourse() {
@@ -406,7 +427,9 @@ class MenuSystem {
         }
 
         let html = `<div class="menu-overlay">`;
-        html += `<div class="menu-title">${this.state.replace('_', ' ')}</div>`;
+        let title = this.state.replace('_', ' ');
+        if (this.state === 'MAIN_MENU') title = "Benny's Mini Golf";
+        html += `<div class="menu-title">${title}</div>`;
         
         // Use grid for Settings to fit more items
         const isGrid = this.state === 'SETTINGS';

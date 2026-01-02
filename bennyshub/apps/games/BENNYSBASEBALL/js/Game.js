@@ -67,7 +67,7 @@ class Game {
             document.getElementById('pauseSettingsMenu').style.display = 'block';
             this.updatePauseSettingsDisplay();
             this.gameState.menuOptions = ['Music: ON', 'Sound Effects: ON', 'Text-to-Speech: ON', 'Voice: DEFAULT', 'Next Track', 'Reset Season', 'Back'];
-            this.gameState.selectedIndex = -1;
+            this.gameState.selectedIndex = 0;
             this.highlightPauseSettingsButton(0);
             this.audioSystem.speak('Settings menu');
         };
@@ -125,34 +125,38 @@ class Game {
         };
         
         window.pauseResetSeason = () => {
-            // Show confirmation dialog instead of immediately resetting
+            this.seasonManager.reset();
+            this.audioSystem.speak("Season reset");
+        };
+
+        window.showResetSeasonConfirmation = () => {
             document.getElementById('pauseSettingsMenu').style.display = 'none';
-            document.getElementById('resetConfirmDialog').style.display = 'block';
-            this.gameState.menuOptions = ['Cancel', 'Confirm'];
-            this.gameState.selectedIndex = 0;
-            this.highlightResetConfirmButton(0);
+            document.getElementById('resetSeasonConfirmation').style.display = 'block';
+            this.gameState.menuOptions = ['Confirm', 'Cancel'];
+            this.gameState.selectedIndex = -1;
+            this.highlightResetConfirmationButton(-1);
             this.audioSystem.speak('Are you sure you want to reset the season?');
         };
 
-        window.cancelResetSeason = () => {
-            // Go back to pause settings menu
-            document.getElementById('resetConfirmDialog').style.display = 'none';
+        window.confirmResetSeason = () => {
+            this.seasonManager.reset();
+            document.getElementById('resetSeasonConfirmation').style.display = 'none';
             document.getElementById('pauseSettingsMenu').style.display = 'block';
+            this.gameState.menuOptions = ['Music: ON', 'Sound Effects: ON', 'Text-to-Speech: ON', 'Voice: DEFAULT', 'Next Track', 'Reset Season', 'Back'];
+            this.gameState.selectedIndex = 0;
             this.updatePauseSettingsDisplay();
-            this.gameState.selectedIndex = 5; // Reset Season option
-            this.highlightPauseSettingsButton(5);
-            this.audioSystem.speak('Reset cancelled');
+            this.highlightPauseSettingsButton(0);
+            this.audioSystem.speak('Season reset');
         };
 
-        window.confirmResetSeason = () => {
-            // Actually reset the season
-            this.seasonManager.reset();
-            document.getElementById('resetConfirmDialog').style.display = 'none';
+        window.cancelResetSeason = () => {
+            document.getElementById('resetSeasonConfirmation').style.display = 'none';
             document.getElementById('pauseSettingsMenu').style.display = 'block';
+            this.gameState.menuOptions = ['Music: ON', 'Sound Effects: ON', 'Text-to-Speech: ON', 'Voice: DEFAULT', 'Next Track', 'Reset Season', 'Back'];
+            this.gameState.selectedIndex = 0;
             this.updatePauseSettingsDisplay();
-            this.gameState.selectedIndex = 5; // Reset Season option
-            this.highlightPauseSettingsButton(5);
-            this.audioSystem.speak('Season reset');
+            this.highlightPauseSettingsButton(0);
+            this.audioSystem.speak('Cancelled');
         };
     }
 
@@ -205,9 +209,9 @@ class Game {
         }
     }
 
-    highlightResetConfirmButton(index) {
-        // Remove highlight from all confirm dialog buttons
-        const buttons = document.querySelectorAll('#resetConfirmDialog button');
+    highlightResetConfirmationButton(index) {
+        // Remove highlight from all confirmation buttons
+        const buttons = document.querySelectorAll('#resetSeasonConfirmation button');
         buttons.forEach(btn => {
             btn.style.background = 'linear-gradient(135deg, rgba(255, 235, 59, 0.2) 0%, rgba(255, 235, 59, 0.4) 50%, rgba(255, 235, 59, 0.2) 100%)';
             btn.style.transform = 'scale(1)';

@@ -81,7 +81,7 @@ class InputHandler {
             GAME_CONSTANTS.MODES.MAIN_MENU, 
             GAME_CONSTANTS.MODES.PLAY_MENU, 
             GAME_CONSTANTS.MODES.SETTINGS_MENU, 
-            GAME_CONSTANTS.MODES.RESET_CONFIRM,
+            GAME_CONSTANTS.MODES.RESET_CONFIRMATION,
             GAME_CONSTANTS.MODES.COLOR_SELECT,
             GAME_CONSTANTS.MODES.BATTING,
             GAME_CONSTANTS.MODES.PITCHING,
@@ -117,8 +117,8 @@ class InputHandler {
             this.handlePlayMenuBackwardScan();
         } else if (mode === GAME_CONSTANTS.MODES.SETTINGS_MENU) {
             this.handleSettingsMenuBackwardScan();
-        } else if (mode === GAME_CONSTANTS.MODES.RESET_CONFIRM) {
-            this.handleResetConfirmBackwardScan();
+        } else if (mode === GAME_CONSTANTS.MODES.RESET_CONFIRMATION) {
+            this.handleResetConfirmationBackwardScan();
         } else if (mode === GAME_CONSTANTS.MODES.COLOR_SELECT) {
             this.handleColorSelectBackwardScan();
         } else if (mode === GAME_CONSTANTS.MODES.BATTING) {
@@ -193,8 +193,8 @@ class InputHandler {
             this.handlePlayMenuScan();
         } else if (mode === GAME_CONSTANTS.MODES.SETTINGS_MENU) {
             this.handleSettingsMenuScan();
-        } else if (mode === GAME_CONSTANTS.MODES.RESET_CONFIRM) {
-            this.handleResetConfirmScan();
+        } else if (mode === GAME_CONSTANTS.MODES.RESET_CONFIRMATION) {
+            this.handleResetConfirmationScan();
         } else if (mode === GAME_CONSTANTS.MODES.COLOR_SELECT) {
             this.handleColorSelectScan();
         } else if (mode === GAME_CONSTANTS.MODES.BATTING) {
@@ -224,6 +224,13 @@ class InputHandler {
         const gameState = this.game.gameState;
         gameState.selectedIndex = (gameState.selectedIndex + 1) % gameState.menuOptions.length;
         this.game.menuSystem.drawSettingsMenu();
+        this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
+    }
+
+    handleResetConfirmationScan() {
+        const gameState = this.game.gameState;
+        gameState.selectedIndex = (gameState.selectedIndex + 1) % gameState.menuOptions.length;
+        this.game.menuSystem.drawResetConfirmation();
         this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
     }
 
@@ -287,26 +294,19 @@ class InputHandler {
         // Check which pause menu is currently visible
         const pauseMenu = document.getElementById('pauseMenu');
         const pauseSettingsMenu = document.getElementById('pauseSettingsMenu');
-        const resetConfirmDialog = document.getElementById('resetConfirmDialog');
+        const resetSeasonConfirmation = document.getElementById('resetSeasonConfirmation');
         
         if (pauseMenu.style.display !== 'none') {
             // Main pause menu
             this.game.highlightPauseButton(gameState.selectedIndex);
-        } else if (resetConfirmDialog.style.display !== 'none') {
+        } else if (resetSeasonConfirmation.style.display !== 'none') {
             // Reset confirmation dialog
-            this.game.highlightResetConfirmButton(gameState.selectedIndex);
+            this.game.highlightResetConfirmationButton(gameState.selectedIndex);
         } else {
             // Settings menu
             this.game.highlightPauseSettingsButton(gameState.selectedIndex);
         }
         
-        this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
-    }
-
-    handleResetConfirmScan() {
-        const gameState = this.game.gameState;
-        gameState.selectedIndex = (gameState.selectedIndex + 1) % gameState.menuOptions.length;
-        this.game.menuSystem.drawResetConfirmDialog();
         this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
     }
 
@@ -334,6 +334,15 @@ class InputHandler {
             gameState.menuOptions.length - 1 : 
             gameState.selectedIndex - 1;
         this.game.menuSystem.drawSettingsMenu();
+        this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
+    }
+
+    handleResetConfirmationBackwardScan() {
+        const gameState = this.game.gameState;
+        gameState.selectedIndex = gameState.selectedIndex <= 0 ? 
+            gameState.menuOptions.length - 1 : 
+            gameState.selectedIndex - 1;
+        this.game.menuSystem.drawResetConfirmation();
         this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
     }
 
@@ -385,28 +394,19 @@ class InputHandler {
         // Check which pause menu is currently visible
         const pauseMenu = document.getElementById('pauseMenu');
         const pauseSettingsMenu = document.getElementById('pauseSettingsMenu');
-        const resetConfirmDialog = document.getElementById('resetConfirmDialog');
+        const resetSeasonConfirmation = document.getElementById('resetSeasonConfirmation');
         
         if (pauseMenu.style.display !== 'none') {
             // Main pause menu
             this.game.highlightPauseButton(gameState.selectedIndex);
-        } else if (resetConfirmDialog.style.display !== 'none') {
+        } else if (resetSeasonConfirmation.style.display !== 'none') {
             // Reset confirmation dialog
-            this.game.highlightResetConfirmButton(gameState.selectedIndex);
+            this.game.highlightResetConfirmationButton(gameState.selectedIndex);
         } else {
             // Settings menu
             this.game.highlightPauseSettingsButton(gameState.selectedIndex);
         }
         
-        this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
-    }
-
-    handleResetConfirmBackwardScan() {
-        const gameState = this.game.gameState;
-        gameState.selectedIndex = gameState.selectedIndex <= 0 ? 
-            gameState.menuOptions.length - 1 : 
-            gameState.selectedIndex - 1;
-        this.game.menuSystem.drawResetConfirmDialog();
         this.game.audioSystem.speak(gameState.menuOptions[gameState.selectedIndex]);
     }
 
@@ -445,7 +445,7 @@ class InputHandler {
                 // Check which pause menu is currently visible
                 const pauseMenu = document.getElementById('pauseMenu');
                 const pauseSettingsMenu = document.getElementById('pauseSettingsMenu');
-                const resetConfirmDialog = document.getElementById('resetConfirmDialog');
+                const resetSeasonConfirmation = document.getElementById('resetSeasonConfirmation');
                 
                 if (pauseMenu.style.display !== 'none') {
                     // Main pause menu - trigger the appropriate button click
@@ -453,9 +453,9 @@ class InputHandler {
                     if (buttons[this.game.gameState.selectedIndex]) {
                         buttons[this.game.gameState.selectedIndex].click();
                     }
-                } else if (resetConfirmDialog.style.display !== 'none') {
+                } else if (resetSeasonConfirmation.style.display !== 'none') {
                     // Reset confirmation dialog - trigger the appropriate button click
-                    const confirmButtons = document.querySelectorAll('#resetConfirmDialog button');
+                    const confirmButtons = document.querySelectorAll('#resetSeasonConfirmation button');
                     if (confirmButtons[this.game.gameState.selectedIndex]) {
                         confirmButtons[this.game.gameState.selectedIndex].click();
                     }
@@ -470,7 +470,7 @@ class InputHandler {
             }
             
             // Menu navigation for other menus
-            const menuModes = [GAME_CONSTANTS.MODES.MAIN_MENU, GAME_CONSTANTS.MODES.PLAY_MENU, GAME_CONSTANTS.MODES.SETTINGS_MENU, GAME_CONSTANTS.MODES.COLOR_SELECT, GAME_CONSTANTS.MODES.RESET_CONFIRM];
+            const menuModes = [GAME_CONSTANTS.MODES.MAIN_MENU, GAME_CONSTANTS.MODES.PLAY_MENU, GAME_CONSTANTS.MODES.SETTINGS_MENU, GAME_CONSTANTS.MODES.RESET_CONFIRMATION, GAME_CONSTANTS.MODES.COLOR_SELECT];
             if (menuModes.includes(this.game.gameState.mode)) {
                 this.game.gameState.lastActionTime = now;
                 this.game.audioSystem.playSound('select');

@@ -376,8 +376,8 @@ class MenuSystem {
             this.handleSettingsSelection(option);
         } else if (gameState.mode === GAME_CONSTANTS.MODES.COLOR_SELECT) {
             this.handleColorSelection();
-        } else if (gameState.mode === GAME_CONSTANTS.MODES.RESET_CONFIRM) {
-            this.handleResetConfirmSelection(option);
+        } else if (gameState.mode === GAME_CONSTANTS.MODES.RESET_CONFIRMATION) {
+            this.handleResetConfirmation(option);
         }
     }
 
@@ -404,11 +404,11 @@ class MenuSystem {
                 window.parent.postMessage({ action: 'focusBackButton' }, '*');
             }
             // Navigate to parent directory (Access-Hub root)
-            location.href = '../index.html';
+            location.href = '../../../index.html';
         } catch(err) {
             // Fallback: try relative navigation
             try {
-                window.location.replace('../index.html');
+                window.location.replace('../../../index.html');
             } catch(_) {
                 // Last resort: go up one level
                 window.location.href = '..';
@@ -438,20 +438,17 @@ class MenuSystem {
             } else {
                 this.game.audioSystem.stopMusic();
             }
-            // Preserve current selection
-            this.showSettingsMenu(true);
+            this.showSettingsMenu();
             this.game.audioSystem.speak(this.game.audioSystem.settings.musicEnabled ? "Music enabled" : "Music disabled");
         } else if (option.includes('Sound Effects:')) {
             this.game.audioSystem.settings.soundEnabled = !this.game.audioSystem.settings.soundEnabled;
             this.game.audioSystem.save();
-            // Preserve current selection
-            this.showSettingsMenu(true);
+            this.showSettingsMenu();
             this.game.audioSystem.speak(this.game.audioSystem.settings.soundEnabled ? "Sound effects enabled" : "Sound effects disabled");
         } else if (option.includes('Text-to-Speech:')) {
             this.game.audioSystem.settings.ttsEnabled = !this.game.audioSystem.settings.ttsEnabled;
             this.game.audioSystem.save();
-            // Preserve current selection
-            this.showSettingsMenu(true);
+            this.showSettingsMenu();
             if (this.game.audioSystem.settings.ttsEnabled) {
                 this.game.audioSystem.speak("Text to speech enabled");
             }
@@ -461,8 +458,7 @@ class MenuSystem {
                 this.game.audioSystem.voiceManager.cycleVoice();
                 const currentVoice = this.game.audioSystem.voiceManager.getCurrentVoice();
                 const voiceName = this.game.audioSystem.voiceManager.getVoiceDisplayName(currentVoice);
-                // Preserve current selection
-                this.showSettingsMenu(true);
+                this.showSettingsMenu();
                 this.game.audioSystem.speak(`Voice changed to ${voiceName}`);
             } else {
                 // Fallback to old voice cycling
@@ -470,35 +466,66 @@ class MenuSystem {
                 const currentIndex = voices.indexOf(this.game.audioSystem.settings.voiceType);
                 this.game.audioSystem.settings.voiceType = voices[(currentIndex + 1) % voices.length];
                 this.game.audioSystem.save();
-                // Preserve current selection
-                this.showSettingsMenu(true);
+                this.showSettingsMenu();
                 this.game.audioSystem.speak(`Voice changed to ${this.game.audioSystem.settings.voiceType}`);
             }
         } else if (option === 'Next Track') {
             this.game.audioSystem.nextTrack();
-            // Preserve current selection
-            this.showSettingsMenu(true);
             this.game.audioSystem.speak("Next track");
         } else if (option === 'Reset Season') {
-            // Show confirmation dialog instead of immediately resetting
-            this.showResetConfirmDialog();
+            this.showResetConfirmation();
         } else if (option === 'Back') {
             this.showMainMenu();
         }
     }
 
-    handleResetConfirmSelection(option) {
-        if (option === 'Cancel') {
-            // Go back to settings menu
-            this.showSettingsMenu();
-            this.game.gameState.selectedIndex = 5; // Reset Season option
-            this.game.audioSystem.speak("Reset cancelled");
-        } else if (option === 'Confirm') {
-            // Actually reset the season
+    showResetConfirmation() {
+        const gameState = this.game.gameState;
+        gameState.mode = GAME_CONSTANTS.MODES.RESET_CONFIRMATION;
+        gameState.previousMode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
+        gameState.menuOptions = ['Confirm', 'Cancel'];
+        gameState.selectedIndex = -1;
+        
+        this.drawResetConfirmation();
+        this.game.audioSystem.speak('Are you sure you want to reset the season?');
+    }
+
+    drawResetConfirmation() {
+        const ctx = this.game.ctx;
+        const canvas = this.game.canvas;
+        const gameState = this.game.gameState;
+
+        ctx.fillStyle = '#000428';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        this.game.fieldRenderer.drawField(gameState);
+        
+        // Warning title
+        ctx.font = 'bold 48px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff6666';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.strokeText("⚠️ RESET SEASON", canvas.width / 2, 100);
+        ctx.fillText("⚠️ RESET SEASON", canvas.width / 2, 100);
+        
+        // Confirmation message
+        ctx.font = 'bold 24px monospace';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("Are you sure you want to reset the season?", canvas.width / 2, 160);
+        ctx.fillText("This cannot be undone!", canvas.width / 2, 200);
+        
+        this.drawMenuPanel(gameState.menuOptions, gameState.selectedIndex, 28);
+    }
+
+    handleResetConfirmation(option) {
+        if (option === 'Confirm') {
             this.game.seasonManager.reset();
             this.showSettingsMenu();
-            this.game.gameState.selectedIndex = 5; // Reset Season option
             this.game.audioSystem.speak("Season reset");
+        } else if (option === 'Cancel') {
+            this.showSettingsMenu();
+            this.game.audioSystem.speak("Cancelled");
         }
     }
 
@@ -528,6 +555,10 @@ class MenuSystem {
         const gameState = this.game.gameState;
         gameState.mode = GAME_CONSTANTS.MODES.MAIN_MENU;
         
+        // Reset input blocking flags to ensure menu is interactive
+        gameState.inputsBlocked = false;
+        gameState.playInProgress = false;
+        
         // Simple main menu - no season info here
         gameState.menuOptions = ['Play Game', 'Settings', 'Exit Game'];
         
@@ -544,10 +575,24 @@ class MenuSystem {
         gameState.mode = GAME_CONSTANTS.MODES.PLAY_MENU;
         gameState.previousMode = GAME_CONSTANTS.MODES.MAIN_MENU;
         
+        // Reset input blocking flags
+        gameState.inputsBlocked = false;
+        gameState.playInProgress = false;
+        
         // Check if there's an active season
         if (this.game.seasonManager.data.active) {
             // Replace "Season Mode" with "Resume Season" if season is active
-            const seasonText = `Resume Season (${this.game.seasonManager.data.wins}-${this.game.seasonManager.data.losses})`;
+            let seasonText = `Resume Season`;
+            const sm = this.game.seasonManager.data;
+            
+            if (sm.inChampionship) {
+                seasonText = `Resume Championship (${sm.championshipWins}-${sm.championshipLosses})`;
+            } else if (sm.inPlayoffs) {
+                seasonText = `Resume Playoffs (${sm.playoffWins}-${sm.playoffLosses})`;
+            } else {
+                seasonText = `Resume Season (${sm.wins}-${sm.losses})`;
+            }
+            
             gameState.menuOptions = ['Exhibition Mode', seasonText, 'Back'];
         } else {
             // Normal menu when no active season
@@ -560,12 +605,9 @@ class MenuSystem {
         this.game.audioSystem.speak("Choose game mode");
     }
 
-    showSettingsMenu(preserveIndex = false) {
+    showSettingsMenu() {
         const gameState = this.game.gameState;
         gameState.mode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
-        
-        // Preserve current index if requested
-        const prevIndex = (preserveIndex ? gameState.selectedIndex : 0);
         
         // Get current voice name for display
         let voiceDisplayName = 'DEFAULT';
@@ -585,11 +627,7 @@ class MenuSystem {
             'Reset Season',
             'Back'
         ];
-        
-        // Keep selection on same item if valid, else default to 0
-        gameState.selectedIndex = (preserveIndex && prevIndex >= 0 && prevIndex < gameState.menuOptions.length)
-            ? prevIndex
-            : 0;
+        gameState.selectedIndex = 0;
         
         this.drawSettingsMenu();
         this.game.audioSystem.speak("Settings menu");
@@ -606,44 +644,5 @@ class MenuSystem {
         
         this.drawColorSelectMenu();
         this.game.audioSystem.speak(`Choose your team color for ${mode}. Current selection: ${GAME_CONSTANTS.COLOR_OPTIONS[0].name}`);
-    }
-
-    showResetConfirmDialog() {
-        const gameState = this.game.gameState;
-        gameState.mode = GAME_CONSTANTS.MODES.RESET_CONFIRM;
-        gameState.previousMode = GAME_CONSTANTS.MODES.SETTINGS_MENU;
-        gameState.menuOptions = ['Cancel', 'Confirm'];
-        gameState.selectedIndex = -1;
-        
-        this.drawResetConfirmDialog();
-        this.game.audioSystem.speak("Are you sure you want to reset the season?");
-    }
-
-    drawResetConfirmDialog() {
-        const ctx = this.game.ctx;
-        const canvas = this.game.canvas;
-        const gameState = this.game.gameState;
-
-        ctx.fillStyle = '#000428';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        this.game.fieldRenderer.drawField(gameState);
-        
-        // Title
-        ctx.font = 'bold 48px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff6600';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.strokeText("⚠️ RESET SEASON", canvas.width / 2, 100);
-        ctx.fillText("⚠️ RESET SEASON", canvas.width / 2, 100);
-        
-        // Warning message
-        ctx.font = 'bold 24px monospace';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText("Are you sure you want to", canvas.width / 2, 180);
-        ctx.fillText("reset the season?", canvas.width / 2, 220);
-        
-        this.drawMenuPanel(gameState.menuOptions, gameState.selectedIndex, 28);
     }
 }

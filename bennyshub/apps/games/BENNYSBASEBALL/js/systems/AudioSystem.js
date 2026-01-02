@@ -36,26 +36,10 @@ class AudioSystem {
             Object.assign(this.settings, JSON.parse(saved));
         }
         
-        // Sync TTS settings with voice manager - ALWAYS use voice manager as source of truth
+        // Sync TTS settings with voice manager
         if (this.voiceManager) {
-            // Wait a bit for voice manager to fully initialize
-            setTimeout(() => {
-                try {
-                    const voiceSettings = this.voiceManager.getSettings();
-                    // Always use voice manager's TTS setting as source of truth
-                    this.settings.ttsEnabled = voiceSettings.ttsEnabled;
-                    console.log('Baseball: Synced with voice manager - TTS:', this.settings.ttsEnabled);
-                    
-                    // Update localStorage to match voice manager
-                    try {
-                        localStorage.setItem(GAME_CONSTANTS.STORAGE_KEYS.AUDIO, JSON.stringify(this.settings));
-                    } catch(e) {}
-                } catch(e) {
-                    console.error('Baseball: Failed to sync with voice manager:', e);
-                }
-            }, 100);
-        } else {
-            console.warn('Baseball: Voice manager not available');
+            const voiceSettings = this.voiceManager.getSettings();
+            this.settings.ttsEnabled = voiceSettings.ttsEnabled;
         }
     }
 
@@ -91,12 +75,25 @@ class AudioSystem {
     }
 
     speak(text) {
+        if (!this.settings.ttsEnabled) return;
+        
         // Use NarbeVoiceManager for consistent TTS
-        if (!this.voiceManager) return;
-        if (!this.voiceManager.getSettings().ttsEnabled) return;
-        // Convert position abbreviations to full names
-        const processedText = this.convertPositionNames(text);
-        this.voiceManager.speak(processedText);
+        if (this.voiceManager) {
+            // Convert position abbreviations to full names
+            const processedText = this.convertPositionNames(text);
+            this.voiceManager.speakProcessed(processedText);
+        } else {
+            // Fallback to manual TTS if voice manager not available
+            if (!window.speechSynthesis) return;
+            
+            const processedText = this.convertPositionNames(text);
+            const utterance = new SpeechSynthesisUtterance(processedText);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+        }
     }
 
     convertPositionNames(text) {

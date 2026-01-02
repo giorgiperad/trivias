@@ -17,7 +17,11 @@ class SeasonManager {
             inPlayoffs: false,
             inChampionship: false,
             playoffOpponent: null,
+            playoffWins: 0,
+            playoffLosses: 0,
             championshipOpponent: null,
+            championshipWins: 0,
+            championshipLosses: 0,
             seasonFailed: false // Track if season failed to qualify for playoffs
         };
         this.load();
@@ -27,6 +31,9 @@ class SeasonManager {
         const saved = localStorage.getItem(GAME_CONSTANTS.STORAGE_KEYS.SEASON);
         if (saved) {
             Object.assign(this.data, JSON.parse(saved));
+            // Ensure new fields exist for older saves
+            if (this.data.playoffWins === undefined) this.data.playoffWins = 0;
+            if (this.data.playoffLosses === undefined) this.data.playoffLosses = 0;
         }
     }
 
@@ -51,7 +58,11 @@ class SeasonManager {
             inPlayoffs: false,
             inChampionship: false,
             playoffOpponent: null,
+            playoffWins: 0,
+            playoffLosses: 0,
             championshipOpponent: null,
+            championshipWins: 0,
+            championshipLosses: 0,
             seasonFailed: false
         };
         this.save();
@@ -88,20 +99,37 @@ class SeasonManager {
             inPlayoffs: false,
             inChampionship: false,
             playoffOpponent: null,
+            playoffWins: 0,
+            playoffLosses: 0,
             championshipOpponent: null,
+            championshipWins: 0,
+            championshipLosses: 0,
             seasonFailed: false
         };
         this.save();
     }
 
     selectOpponent() {
+        // If season failed, return null
+        if (this.data.seasonFailed) {
+            return null;
+        }
+
         // If in championship, use the championship opponent
         if (this.data.inChampionship && this.data.championshipOpponent) {
+            // Check if series is already over (Best of 5, first to 3 wins)
+            if (this.data.championshipWins >= 3 || this.data.championshipLosses >= 3) {
+                return null;
+            }
             return GAME_CONSTANTS.COLOR_OPTIONS.find(c => c.name === this.data.championshipOpponent);
         }
         
         // If in playoffs, use the playoff opponent
         if (this.data.inPlayoffs && this.data.playoffOpponent) {
+            // Check if series is already over (Best of 3, first to 2 wins)
+            if (this.data.playoffWins >= 2 || this.data.playoffLosses >= 2) {
+                return null;
+            }
             return GAME_CONSTANTS.COLOR_OPTIONS.find(c => c.name === this.data.playoffOpponent);
         }
         
@@ -118,9 +146,11 @@ class SeasonManager {
                     .filter(c => c.name !== this.data.teamColor);
                 const championshipOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
                 this.data.championshipOpponent = championshipOpponent.name;
+                this.data.championshipWins = 0;
+                this.data.championshipLosses = 0;
                 this.save();
                 
-                return championshipOpponent;
+                return GAME_CONSTANTS.COLOR_OPTIONS.find(c => c.name === championshipOpponent.name);
             } else if (this.data.wins >= 5) {
                 // Qualified for playoffs with at least 5 wins
                 this.data.inPlayoffs = true;
@@ -130,9 +160,11 @@ class SeasonManager {
                     .filter(c => c.name !== this.data.teamColor);
                 const playoffOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
                 this.data.playoffOpponent = playoffOpponent.name;
+                this.data.playoffWins = 0;
+                this.data.playoffLosses = 0;
                 this.save();
                 
-                return playoffOpponent;
+                return GAME_CONSTANTS.COLOR_OPTIONS.find(c => c.name === playoffOpponent.name);
             } else {
                 // Did not qualify for playoffs (less than 5 wins)
                 // Season ends, need to indicate this somehow
@@ -199,6 +231,9 @@ class SeasonManager {
     updateProgress(playerWon) {
         if (!this.data.active) return;
         
+        // Check if this was a championship game win BEFORE updating anything
+        let wasChampionshipWin = false;
+        
         // Update overall record
         this.data.gamesPlayed++;
         if (playerWon) {
@@ -215,42 +250,80 @@ class SeasonManager {
                 this.data.opponentResults[this.data.currentOpponent].losses++;
             }
         }
-        
-        // Check if playoffs just ended (need to move to championship)
-        if (this.data.inPlayoffs && !this.data.inChampionship && playerWon) {
-            // Won playoff game, move to championship
-            // Select a DIFFERENT random opponent for championship (must be different from playoff opponent)
-            const availableOpponents = GAME_CONSTANTS.COLOR_OPTIONS
-                .filter(c => c.name !== this.data.teamColor && c.name !== this.data.playoffOpponent);
-            
-            if (availableOpponents.length > 0) {
-                const championshipOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
-                this.data.championshipOpponent = championshipOpponent.name;
+
+        // Handle Championship Series Logic
+        if (this.data.inChampionship) {
+            if (playerWon) {
+                this.data.championshipWins++;
             } else {
-                // Fallback: if somehow no other opponents available, use any opponent except player's team
-                const fallbackOpponents = GAME_CONSTANTS.COLOR_OPTIONS.filter(c => c.name !== this.data.teamColor);
-                const championshipOpponent = fallbackOpponents[Math.floor(Math.random() * fallbackOpponents.length)];
-                this.data.championshipOpponent = championshipOpponent.name;
+                this.data.championshipLosses++;
             }
             
-            this.data.inChampionship = true;
-            this.data.inPlayoffs = false; // Clear playoffs flag
+            // Check if series is over (Best of 5, first to 3 wins)
+            if (this.data.championshipWins >= 3) {
+                wasChampionshipWin = true;
+            } else if (this.data.championshipLosses >= 3) {
+                // Lost championship series
+                this.data.seasonFailed = true; // Mark as failed to trigger reset/game over logic
+            }
         }
         
-        // If lost in playoffs or championship, end the season
-        if ((this.data.inPlayoffs || this.data.inChampionship) && !playerWon) {
-            // Season ends on a loss in playoffs/championship
-            // Keep the season active but clear the current opponent so they can restart
+        // Handle Playoff Series Logic
+        else if (this.data.inPlayoffs) {
+            if (playerWon) {
+                this.data.playoffWins++;
+            } else {
+                this.data.playoffLosses++;
+            }
+
+            // Check if series is over (Best of 3, first to 2 wins)
+            if (this.data.playoffWins >= 2) {
+                // Won playoff series, move to championship
+                // Select a DIFFERENT random opponent for championship (must be different from playoff opponent)
+                const availableOpponents = GAME_CONSTANTS.COLOR_OPTIONS
+                    .filter(c => c.name !== this.data.teamColor && c.name !== this.data.playoffOpponent);
+                
+                if (availableOpponents.length > 0) {
+                    const championshipOpponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
+                    this.data.championshipOpponent = championshipOpponent.name;
+                } else {
+                    // Fallback: if somehow no other opponents available, use any opponent except player's team
+                    const fallbackOpponents = GAME_CONSTANTS.COLOR_OPTIONS.filter(c => c.name !== this.data.teamColor);
+                    const championshipOpponent = fallbackOpponents[Math.floor(Math.random() * fallbackOpponents.length)];
+                    this.data.championshipOpponent = championshipOpponent.name;
+                }
+                
+                this.data.inChampionship = true;
+                this.data.inPlayoffs = false; // Clear playoffs flag
+                this.data.championshipWins = 0; // Initialize series
+                this.data.championshipLosses = 0;
+            } else if (this.data.playoffLosses >= 2) {
+                // Lost playoff series
+                this.data.seasonFailed = true;
+            }
         }
         
         // Clear current game when game ends
         this.clearCurrentGame();
         this.save();
+        
+        // Return championship victory status
+        return wasChampionshipWin;
+    }
+
+    // Get championship victory data for the victory screen
+    getChampionshipVictoryData() {
+        return {
+            teamColor: this.data.teamColor,
+            wins: this.data.wins,
+            losses: this.data.losses,
+            finalRecord: `${this.data.wins}-${this.data.losses}`
+        };
     }
 
     getSeasonStatus() {
         if (this.data.inChampionship) {
-            return "Championship Game!";
+            return `Championship Series: ${this.data.championshipWins}-${this.data.championshipLosses}`;
         } else if (this.data.inPlayoffs) {
             return "Playoffs";
         } else if (this.data.seasonFailed) {

@@ -29,6 +29,19 @@ class GameLogic {
             }
             
             opponentColorData = this.game.seasonManager.selectOpponent();
+            
+            // Check if season is over or failed
+            if (!opponentColorData) {
+                if (this.game.seasonManager.data.seasonFailed) {
+                    this.game.audioSystem.speak("Season failed. Better luck next time.");
+                } else {
+                    this.game.audioSystem.speak("Season complete.");
+                }
+                this.game.seasonManager.reset();
+                this.game.menuSystem.showMainMenu();
+                return;
+            }
+            
             this.game.seasonManager.save();
         } else {
             // Exhibition - random opponent
@@ -53,7 +66,21 @@ class GameLogic {
             GAME_CONSTANTS.COLORS.playerRed = opponentColorData.color;
         }
         
-        this.game.audioSystem.speak(`${playerColorData.name} versus ${opponentColorData.name}`);
+        // Announce game type
+        let announcement = `${playerColorData.name} versus ${opponentColorData.name}`;
+        if (mode === 'season') {
+            if (this.game.seasonManager.data.inChampionship) {
+                const wins = this.game.seasonManager.data.championshipWins;
+                const losses = this.game.seasonManager.data.championshipLosses;
+                announcement = `Championship Series Game. Series is ${wins} to ${losses}. ${announcement}`;
+            } else if (this.game.seasonManager.data.inPlayoffs) {
+                const wins = this.game.seasonManager.data.playoffWins;
+                const losses = this.game.seasonManager.data.playoffLosses;
+                announcement = `Playoff Series Game. Series is ${wins} to ${losses}. ${announcement}`;
+            }
+        }
+        
+        this.game.audioSystem.speak(announcement);
         
         setTimeout(() => this.startGame(), 2000);
     }
@@ -89,7 +116,8 @@ class GameLogic {
             c.name === (savedGame.homeTeam === playerColorData?.name ? savedGame.awayTeam : savedGame.homeTeam)
         );
 
-        if (gameState.getPlayerTeam() === gameState.awayTeam) {
+        // Determine if player is away team based on name match
+        if (savedGame.awayTeam === playerColorData.name) {
             GAME_CONSTANTS.COLORS.playerRed = playerColorData.color;
             GAME_CONSTANTS.COLORS.playerBlue = opponentColorData.color;
         } else {
@@ -1022,7 +1050,7 @@ class GameLogic {
             setTimeout(() => {
                 this.game.seasonManager.reset();
                 this.game.menuSystem.showMainMenu();
-            }, GAME_CONSTANTS.TIMING.GAME_OVER_DELAY + 2000); // Extra time to enjoy victory
+            }, 15000); // 15 seconds total
         } else {
             // Normal game over screen
             this.game.uiRenderer.drawGameOverScreen(gameState);

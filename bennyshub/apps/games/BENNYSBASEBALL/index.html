@@ -192,16 +192,16 @@
             <button id="pauseTTSToggle" onclick="togglePauseTTS()">Text-to-Speech: ON</button>
             <button id="pauseVoiceToggle" onclick="togglePauseVoice()">Voice: DEFAULT</button>
             <button onclick="pauseNextTrack()">Next Track</button>
-            <button onclick="pauseResetSeason()">Reset Season</button>
+            <button onclick="showResetSeasonConfirmation()">Reset Season</button>
             <button onclick="backToPauseMenu()">Back</button>
         </div>
 
         <!-- Reset Season Confirmation Dialog -->
-        <div class="pause-menu" id="resetConfirmDialog" style="display: none;">
+        <div class="pause-menu" id="resetSeasonConfirmation" style="display: none;">
             <h2>⚠️ RESET SEASON</h2>
-            <p style="color: #fff; font-size: 20px; margin-bottom: 30px; max-width: 400px;">Are you sure you want to reset the season?</p>
-            <button id="resetCancelBtn" onclick="cancelResetSeason()">Cancel</button>
-            <button id="resetConfirmBtn" onclick="confirmResetSeason()">Confirm</button>
+            <p style="color: #fff; font-size: 20px; margin: 20px 0; text-align: center;">Are you sure you want to reset the season?</p>
+            <button onclick="confirmResetSeason()">Confirm</button>
+            <button onclick="cancelResetSeason()">Cancel</button>
         </div>
     </div>
 
