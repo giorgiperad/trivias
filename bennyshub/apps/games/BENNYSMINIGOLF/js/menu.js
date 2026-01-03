@@ -158,7 +158,7 @@ class MenuSystem {
         this.items = this.menus['MAIN_MENU'];
         this.selectedIndex = 0;
         this.render();
-        AudioSys.speak("Main Menu");
+        AudioSys.speak("Benny's Mini Golf");
     }
 
     showPauseMenu() {
