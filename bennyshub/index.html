@@ -98,6 +98,51 @@
       box-shadow: 0 0 0 4px rgba(255,255,255,.75), 0 10px 25px rgba(0,0,0,.35);
     }
 
+    /* Highlight Style - Full Cell variations */
+    body.highlight-style-full.highlight-blue .card-btn:focus-visible,
+    body.highlight-style-full.highlight-blue .backbtn:focus-visible,
+    body.highlight-style-full.highlight-blue .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-blue .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-blue .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(91,176,255,.3), rgba(91,176,255,.1)) !important;
+    }
+    body.highlight-style-full.highlight-green .card-btn:focus-visible,
+    body.highlight-style-full.highlight-green .backbtn:focus-visible,
+    body.highlight-style-full.highlight-green .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-green .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-green .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(0,255,136,.3), rgba(0,255,136,.1)) !important;
+    }
+    body.highlight-style-full.highlight-purple .card-btn:focus-visible,
+    body.highlight-style-full.highlight-purple .backbtn:focus-visible,
+    body.highlight-style-full.highlight-purple .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-purple .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-purple .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(157,78,221,.3), rgba(157,78,221,.1)) !important;
+    }
+    body.highlight-style-full.highlight-red .card-btn:focus-visible,
+    body.highlight-style-full.highlight-red .backbtn:focus-visible,
+    body.highlight-style-full.highlight-red .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-red .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-red .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(255,0,110,.3), rgba(255,0,110,.1)) !important;
+    }
+    body.highlight-style-full.highlight-yellow .card-btn:focus-visible,
+    body.highlight-style-full.highlight-yellow .backbtn:focus-visible,
+    body.highlight-style-full.highlight-yellow .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-yellow .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-yellow .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(255,183,3,.3), rgba(255,183,3,.1)) !important;
+    }
+    body.highlight-style-full.highlight-white .card-btn:focus-visible,
+    body.highlight-style-full.highlight-white .backbtn:focus-visible,
+    body.highlight-style-full.highlight-white .modal-btn:focus-visible,
+    body.highlight-style-full.highlight-white .iframe-back:focus-visible,
+    body.highlight-style-full.highlight-white .nav-btn:focus-visible {
+      background: linear-gradient(180deg, rgba(255,255,255,.3), rgba(255,255,255,.1)) !important;
+      color: #000; /* Ensure text is readable on white */
+    }
+
     /* Background Theme variations - Dark modes */
     body.bg-ocean {
       background: #001a2e;
@@ -509,6 +554,20 @@
 
   <a class="sr-only" href="#main">Skip to main content</a>
   <div class="container">
+    <div class="foundation-banner" style="display: flex; flex-direction: row; align-items: center; gap: 16px; margin-bottom: 24px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+      <a href="https://narbefoundation.org" target="_blank" rel="noopener" style="flex-shrink: 0; display: block;" aria-label="NARBE Foundation Website">
+        <img src="images/narbefoundation.png" alt="NARBE Foundation Logo" style="width: 80px; height: auto; display: block;">
+      </a>
+      <div style="flex: 1;">
+        <p style="margin: 0 0 8px 0; font-size: 14px; color: var(--muted); line-height: 1.5;">
+          <a href="https://narbehouse.com" target="_blank" rel="noopener" style="color: var(--narbe-orange); text-decoration: none; font-weight: 700;">NARBE House</a> created this software with Ben. The creators volunteer their time to the <a href="https://narbefoundation.org" target="_blank" rel="noopener" style="color: var(--narbe-blue); text-decoration: none; font-weight: 700;">NARBE Foundation</a>. If you'd like to show your appreciation to the creators:
+        </p>
+        <a href="https://streamelements.com/narbehouse/tip" target="_blank" rel="noopener" class="pill" style="text-decoration: none; display: inline-block; cursor: pointer;">
+          Tip the Creators
+        </a>
+      </div>
+    </div>
+
     <header>
       <div class="brand" aria-label="NARBE brand header">
         <div class="brand-left">
@@ -534,7 +593,7 @@
              class="benny-logo" />
       </div>
       <div class="notice" role="note">
-        Below are tools and games that will be populated over time that are free to access and use. Use <span class="kbd">spacebar</span> to scan and <span class="kbd">return</span> to select. Mouse clicks work too.
+        Below are tools and games that will be populated over time that are free to access and use. Use <span class="kbd">spacebar</span> to scan and <span class="kbd">return</span> to select. Mouse clicks work too. Holding down <span class="kbd">return</span> will open the pause menu on games.
       </div>
     </header>
 
@@ -647,6 +706,15 @@
             </div>
           </button>
 
+          <button class="card-btn" id="highlight-style-toggle">
+            <span class="kicker">Setting</span>
+            <div class="btn-title">Highlight Style</div>
+            <div class="row">
+              <p class="desc">Toggle outline or full cell highlight</p>
+              <span class="pill" id="highlight-style-status">Outline</span>
+            </div>
+          </button>
+
           <button class="card-btn" id="textcolor-toggle">
             <span class="kicker">Setting</span>
             <div class="btn-title">Text Color</div>
@@ -738,6 +806,7 @@
     // Settings state
     let settings = {
       highlightColor: 'blue',
+      highlightStyle: 'outline',
       textColor: 'default',
       bgTheme: 'default',
       autoScan: false,
@@ -949,6 +1018,17 @@
       const highlightNames = { blue: 'Blue', green: 'Green', purple: 'Purple', red: 'Red', yellow: 'Yellow', white: 'White' };
       document.getElementById('highlight-status').textContent = highlightNames[settings.highlightColor];
 
+      // Apply highlight style
+      if (settings.highlightStyle === 'full') {
+        document.body.classList.add('highlight-style-full');
+      } else {
+        document.body.classList.remove('highlight-style-full');
+      }
+      const styleStatus = document.getElementById('highlight-style-status');
+      if(styleStatus) {
+        styleStatus.textContent = settings.highlightStyle === 'full' ? 'Full Cell' : 'Outline';
+      }
+
       // Apply text color
       document.body.className = document.body.className.replace(/text-\w+/g, '');
       if (settings.textColor !== 'default') {
@@ -1057,6 +1137,13 @@
       applySettings();
       saveSettings();
       speak(`Highlight color changed to ${settings.highlightColor}`);
+    });
+
+    document.getElementById('highlight-style-toggle').addEventListener('click', () => {
+      settings.highlightStyle = settings.highlightStyle === 'outline' ? 'full' : 'outline';
+      applySettings();
+      saveSettings();
+      speak(`Highlight style changed to ${settings.highlightStyle === 'full' ? 'Full Cell' : 'Outline'}`);
     });
 
     document.getElementById('textcolor-toggle').addEventListener('click', () => {
