@@ -593,7 +593,7 @@
              class="benny-logo" />
       </div>
       <div class="notice" role="note">
-        Below are tools and games that will be populated over time that are free to access and use. Use <span class="kbd">spacebar</span> to scan and <span class="kbd">return</span> to select. Mouse clicks work too. Holding down <span class="kbd">return</span> will open the pause menu on games.
+        Below are tools and games that will be populated over time that are free to access and use. Use <span class="kbd">spacebar</span> to scan and <span class="kbd">return</span> to select. Hold <span class="kbd">spacebar</span> for 3s to scan backwards. Mouse clicks work too. Holding down <span class="kbd">return</span> will open the pause menu on games.
       </div>
     </header>
 
@@ -759,6 +759,15 @@
               <span class="pill" id="autoscan-status">Off</span>
             </div>
           </button>
+
+          <button class="card-btn" id="scanspeed-toggle">
+            <span class="kicker">Setting</span>
+            <div class="btn-title">Scan Speed</div>
+            <div class="row">
+              <p class="desc">Change auto/backward scan speed</p>
+              <span class="pill" id="scanspeed-status">Medium</span>
+            </div>
+          </button>
         </div>
         <p class="footer-note">Press <span class="kbd">spacebar</span> to move focus. Press <span class="kbd">return</span> to toggle settings. Use the Back button to return home.</p>
       </section>
@@ -810,6 +819,7 @@
       textColor: 'default',
       bgTheme: 'default',
       autoScan: false,
+      scanSpeed: 'medium',
     };
 
     // Auto scan state
@@ -817,9 +827,22 @@
     let spaceHoldTimeout = null;
     let backwardsScanInterval = null;
     let spaceHoldStartTime = 0;
-    const AUTO_SCAN_DELAY = 2000; // 2 seconds
-    const BACKWARDS_SCAN_THRESHOLD = 3000; // 3 seconds to trigger backwards scan
-    const BACKWARDS_SCAN_INTERVAL = 1500; // 1.5 seconds between backwards scans
+    
+    // Scan speeds in milliseconds
+    const SCAN_SPEEDS = {
+      fast: 1000,
+      medium: 2000,
+      slow: 3000,
+      superslow: 4000
+    };
+    
+    // BACKWARDS_SCAN_THRESHOLD stays constant as requested (3 seconds)
+    const BACKWARDS_SCAN_THRESHOLD = 3000; 
+    
+    // Helper to get current delay
+    function getScanDelay() {
+      return SCAN_SPEEDS[settings.scanSpeed] || SCAN_SPEEDS.medium;
+    }
 
     // Load JSON data for apps
     async function loadAppsData() {
@@ -1057,9 +1080,21 @@
       };
       document.getElementById('bgtheme-status').textContent = bgThemeNames[settings.bgTheme];
 
+      // Apply scan speed
+      const scanSpeedNames = { fast: 'Fast (1s)', medium: 'Medium (2s)', slow: 'Slow (3s)', superslow: 'Super Slow (4s)' };
+      document.getElementById('scanspeed-status').textContent = scanSpeedNames[settings.scanSpeed] || 'Medium';
+
       // Apply auto scan setting
       document.getElementById('autoscan-status').textContent = settings.autoScan ? 'On' : 'Off';
+      
+      // Update autoscan description
+      const speedSec = getScanDelay() / 1000;
+      const autoScanDesc = document.querySelector('#autoscan-toggle .desc');
+      if(autoScanDesc) autoScanDesc.textContent = `Automatically move focus every ${speedSec} seconds`;
+
       if (settings.autoScan) {
+        // Restart to apply new speed if changed
+        stopAutoScan();
         startAutoScan();
       } else {
         stopAutoScan();
@@ -1081,7 +1116,7 @@
         if (!isTransitioning && !iframeContainer.classList.contains('active') && fullscreenModal.classList.contains('hidden')) {
           focusNext();
         }
-      }, AUTO_SCAN_DELAY);
+      }, getScanDelay());
     }
 
     function stopAutoScan() {
@@ -1190,6 +1225,15 @@
       applySettings();
       saveSettings();
       speak(`Auto scan ${settings.autoScan ? 'enabled' : 'disabled'}`);
+    });
+
+    document.getElementById('scanspeed-toggle').addEventListener('click', () => {
+      const speeds = ['fast', 'medium', 'slow', 'superslow'];
+      const currentIndex = speeds.indexOf(settings.scanSpeed || 'medium');
+      settings.scanSpeed = speeds[(currentIndex + 1) % speeds.length];
+      applySettings();
+      saveSettings();
+      speak(`Scan speed changed to ${settings.scanSpeed}`);
     });
 
     // Fullscreen management
@@ -1499,7 +1543,7 @@
                 clearInterval(backwardsScanInterval);
                 backwardsScanInterval = null;
               }
-            }, BACKWARDS_SCAN_INTERVAL);
+            }, getScanDelay());
           }
         }, BACKWARDS_SCAN_THRESHOLD);
         
