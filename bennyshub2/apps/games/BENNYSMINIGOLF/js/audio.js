@@ -13,17 +13,8 @@ class AudioManager {
         });
         
         // Load Sounds
-        this.sounds = {
-            'putt': new Audio('sounds/putt.wav'),
-            'hole': new Audio('sounds/in-hole.wav'),
-            'splash': new Audio('sounds/splash.wav'),
-            'click': new Audio('sounds/balls-click.wav')
-        };
-        
-        // Ambient Sound
-        this.ambience = new Audio('sounds/ambience.wav');
-        this.ambience.loop = true;
-        this.ambience.volume = 0.3; // Lower volume for background
+        // Convert to WebAudio buffers for iOS compatibility
+        this.audioBuffers = {};
         
         // Initialize AudioContext
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -31,6 +22,17 @@ class AudioManager {
             this.audioCtx = new AudioContext();
         }
 
+        // Load sound files into buffers
+        this.loadSound('putt', 'sounds/putt.wav');
+        this.loadSound('hole', 'sounds/in-hole.wav');
+        this.loadSound('splash', 'sounds/splash.wav');
+        this.loadSound('click', 'sounds/balls-click.wav');
+        
+        // Ambient Sound
+        this.ambience = new Audio('sounds/ambience.wav');
+        this.ambience.loop = true;
+        this.ambience.volume = 0.3; // Lower volume for background
+        
         // Start ambience if enabled (requires user interaction usually, but we'll try)
         // Note: Browsers block autoplay until interaction. We might need to call this on first click.
         if (this.musicEnabled) {
@@ -48,6 +50,17 @@ class AudioManager {
         }
     }
 
+    loadSound(name, url) {
+        if (!this.audioCtx) return;
+        fetch(url)
+            .then(response => response.arrayBuffer())
+            .then(arrayBuffer => this.audioCtx.decodeAudioData(arrayBuffer))
+            .then(audioBuffer => {
+                this.audioBuffers[name] = audioBuffer;
+            })
+            .catch(e => console.warn("Audio load failed for " + name, e));
+    }
+
     speak(text) {
         if (window.NarbeVoiceManager) {
             window.NarbeVoiceManager.speak(text);
@@ -57,13 +70,23 @@ class AudioManager {
     playSound(name) {
         if (!this.soundEnabled) return;
         
-        // Play file-based sounds
-        if (this.sounds[name]) {
-            const sound = this.sounds[name].cloneNode();
-            sound.volume = 0.6;
-            sound.play().catch(e => console.warn("Audio play failed:", e));
+        // Play buffer-based sounds
+        if (this.audioBuffers[name] && this.audioCtx) {
+            const source = this.audioCtx.createBufferSource();
+            source.buffer = this.audioBuffers[name];
+            source.connect(this.audioCtx.destination);
+            
+            // Randomize pitch slightly for variation (optional but nice)
+            if (name === 'putt' || name === 'click') {
+                 source.playbackRate.value = 0.9 + Math.random() * 0.2;
+            }
+            
+            source.start(0);
             return;
         }
+
+        // Fallback to legacy Audio elements if buffer not ready yet (or fail gracefully)
+        // (Removed old new Audio() logic to force WebAudio usage)
         
         // Simple Synthesizer for immediate feedback
         if (this.audioCtx) {

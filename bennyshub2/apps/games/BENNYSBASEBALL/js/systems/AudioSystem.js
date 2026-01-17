@@ -13,6 +13,17 @@ class AudioSystem {
         // Use NarbeVoiceManager for TTS instead of manual voice management
         this.voiceManager = window.NarbeVoiceManager;
         
+        // WebAudio for sound effects (iOS compatible)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            this.audioCtx = new AudioContext();
+            this.audioBuffers = {};
+            
+            // Preload sounds
+            this.loadSound('hit', 'audio/baseballhit.wav');
+            this.loadSound('homerun', 'audio/homerun.wav');
+        }
+        
         // Position name mapping for TTS
         this.positionNames = {
             'P': 'pitcher',
@@ -51,6 +62,28 @@ class AudioSystem {
             this.voiceManager.updateSettings({
                 ttsEnabled: this.settings.ttsEnabled
             });
+        }
+    }
+
+    loadSound(name, url) {
+        if (!this.audioCtx) return;
+        fetch(url)
+            .then(res => res.arrayBuffer())
+            .then(buf => this.audioCtx.decodeAudioData(buf))
+            .then(audio => { this.audioBuffers[name] = audio; })
+            .catch(e => console.warn('Sound load error: ' + name, e));
+    }
+    
+    playSound(name) {
+        if (!this.settings.soundEnabled) return;
+        
+        // WebAudio play
+        if (this.audioCtx && this.audioBuffers && this.audioBuffers[name]) {
+             if (this.audioCtx.state === 'suspended') this.audioCtx.resume().catch(()=>{});
+             const source = this.audioCtx.createBufferSource();
+             source.buffer = this.audioBuffers[name];
+             source.connect(this.audioCtx.destination);
+             source.start(0);
         }
     }
 

@@ -1074,31 +1074,11 @@ class GameLogic {
 
     // Add method to play home run sound effect
     playHomeRunSound() {
-        if (!this.game.audioSystem.settings.soundEnabled) return;
-        
-        try {
-            const homerunAudio = new Audio('audio/homerun.wav');
-            homerunAudio.volume = 0.3; // Set appropriate volume
-            homerunAudio.play().catch(error => {
-                console.warn('Could not play home run sound:', error);
-            });
-        } catch (error) {
-            console.warn('Error loading home run sound:', error);
-        }
+        this.game.audioSystem.playSound('homerun');
     }
 
     // Add method to play baseball hit sound effect
     playBaseballHitSound() {
-        if (!this.game.audioSystem.settings.soundEnabled) return;
-        
-        try {
-            const hitAudio = new Audio('audio/baseballhit.wav');
-            hitAudio.volume = 0.3; // Set appropriate volume
-            hitAudio.play().catch(error => {
-                console.warn('Could not play baseball hit sound:', error);
-            });
-        } catch (error) {
-            console.warn('Error loading baseball hit sound:', error);
-        }
+        this.game.audioSystem.playSound('hit');
     }
 }
