@@ -1,4 +1,4 @@
-               <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <!-- Google tag (gtag.js) -->
@@ -489,6 +489,7 @@
       appearance:none; border:1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.03); color:var(--text);
       padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer;
+      outline: none;
     }
     .backbtn:focus{ box-shadow: var(--ring); }
 
@@ -1952,6 +1953,75 @@
         }
       }
     });
+
+    /**
+     * PUBLIC API: External Switch Control / Game Hub Integration
+     * Allows wrapper apps to trigger inputs directly, bypassing keyboard simulation.
+     * Usage: window.GameHub.triggerAction('select') or window.GameHub.triggerAction('space')
+     */
+    window.GameHub = {
+      triggerAction: function(actionName) {
+        if (!actionName) return;
+        const action = actionName.toLowerCase();
+        
+        // 1. Handle Fullscreen Modal interactions
+        if (!fullscreenModal.classList.contains('hidden')) {
+          if (action === 'space' || action === 'scan') {
+             // Toggle focus
+             const isFullscreenBtn = document.activeElement === modalFullscreenBtn;
+             const target = isFullscreenBtn ? modalCancelBtn : modalFullscreenBtn;
+             target.focus();
+             speak(target === modalCancelBtn ? 'Cancel' : 'Fullscreen');
+          } else if (['select', 'enter', 'return'].includes(action)) {
+             // Click active element
+             if (document.activeElement === modalFullscreenBtn) modalFullscreenBtn.click();
+             else if (document.activeElement === modalCancelBtn) modalCancelBtn.click();
+          }
+          return;
+        }
+
+        // 2. Handle Game/Tool Iframe interactions
+        // Prioritize forwarding events to the game iframe for gameplay
+        if (iframeContainer.classList.contains('active')) {
+           if (appIframe && appIframe.contentWindow) {
+             // Forward via postMessage for modern apps
+             appIframe.contentWindow.postMessage({ type: 'gamehub-input', action: action }, '*');
+             
+             // Attempt to dispatch native event to iframe document (Same Origin support)
+             try {
+               const isSelect = ['select', 'enter', 'return'].includes(action);
+               const key = isSelect ? 'Enter' : ' ';
+               const code = isSelect ? 'Enter' : 'Space';
+               const keyCode = isSelect ? 13 : 32;
+               
+               // Dispatch keydown
+               const kDown = new KeyboardEvent('keydown', {
+                 key: key, code: code, keyCode: keyCode, which: keyCode,
+                 bubbles: true, cancelable: true, view: appIframe.contentWindow
+               });
+               appIframe.contentWindow.document.dispatchEvent(kDown);
+               
+               // Dispatch keyup after short delay
+               setTimeout(() => {
+                 const kUp = new KeyboardEvent('keyup', {
+                   key: key, code: code, keyCode: keyCode, which: keyCode,
+                   bubbles: true, cancelable: true, view: appIframe.contentWindow
+                 });
+                 appIframe.contentWindow.document.dispatchEvent(kUp);
+               }, 50);
+             } catch(e) { /* Expected for cross-origin iframes */ }
+           }
+           return; 
+        }
+
+        // 3. Handle standard Hub Navigation
+        if (action === 'space' || action === 'scan') {
+           focusNext();
+        } else if (['select', 'enter', 'return'].includes(action)) {
+           activateFocused();
+        }
+      }
+    };
   </script>
 </body>
 </html>
