@@ -209,20 +209,13 @@
     .cards-container{
       width: 100%;
       max-width: 1100px;
-      display: grid;
-      gap: 24px;
-      grid-template-columns: 1fr;
       margin-bottom: 24px;
+      /* Center contents */
+      display: flex;
+      justify-content: center;
     }
     
-    @media (min-width: 768px){
-      .cards-container{
-        grid-template-columns: 1.3fr 1fr;
-      }
-      .cards-container.three-col{
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
+    /* Removed grid definition for desktop to keep single centered card */
     
     .card{
       background: var(--card);
@@ -235,6 +228,9 @@
       box-shadow: 
         0 20px 60px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      
+      /* Make it full width of container */
+      width: 100%;
     }
     
     .card::before{
@@ -822,6 +818,113 @@
     .card-content{
       flex: 1;
     }
+
+    .game-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      margin-top: 32px;
+    }
+
+    .game-card {
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+      border-color: var(--narbe-blue);
+    }
+
+    .game-card img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      background: #000;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .game-card-content {
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .game-card h3 {
+      font-size: 18px;
+      margin: 0 0 8px 0;
+      color: var(--narbe-orange);
+    }
+
+    .game-card p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      flex: 1;
+      line-height: 1.5;
+    }
+    
+    .game-card .btn {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .pill-container {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .genre-pill {
+        font-size: 11px;
+        background: rgba(255,255,255,0.05);
+        padding: 4px 8px;
+        border-radius: 6px;
+        color: var(--muted);
+    }
+
+    /* Iframe Modal */
+    .iframe-container{
+      position: fixed; inset: 0; background: var(--bg);
+      z-index: 9000; display: none; flex-direction: column;
+    }
+    .iframe-container.active{ display: flex; }
+    
+    .iframe-header{
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 24px; background: rgba(0,0,0,.3);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    
+    .iframe-back{
+      appearance: none; border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.03); color: var(--text);
+      padding: 10px 14px; border-radius: 12px; font-weight: 700;
+      cursor: pointer; outline: none;
+      font-size: 14px;
+    }
+    
+    .iframe-back:hover{
+        background: rgba(255,255,255,.08);
+    }
+    
+    .iframe-title{
+      font-weight: 800; font-size: 18px;
+      color: var(--narbe-orange);
+    }
+    
+    .iframe-wrapper{
+      flex: 1; position: relative; overflow: hidden;
+    }
   </style>
 </head>
 <body>
@@ -864,9 +967,9 @@
 
     <main>
       <section class="hero-section">
-        <h1 id="title">Accessible tools built with care</h1>
+        <h1 id="title">One and Two Switch Accessibility Tools and Games</h1>
         <p class="lede">
-          Supporting Ben and families like ours with intuitive, accessible tools and editors. Game builders for <strong>Ben's P3GL Adventure</strong> and <strong>Ben's Mini Golf</strong> coming soon.
+          Supporting Ben and families like ours with intuitive, accessible tools and editors.
         </p>
       </section>
 
@@ -876,7 +979,7 @@
           <h2 id="hub">Start here</h2>
           <div class="card-content">
             <p>
-              Try <strong>Benny's Accessibility Hub Beta</strong> featuring a predictive keyboard, customizable phrase and media board, and early games that work with two-switch input (Space and Return). Full support for mouse, head tracking, and eye tracking.
+              Try <strong>Benny's Accessibility Hub Beta</strong> featuring a predictive keyboard, customizable phrase and media board, and early games that work with one and/or two-switch input (Space and Return). Full support for mouse, head tracking, and eye tracking.
             </p>
             <div class="video-container">
               <div class="video-badge">Tutorial</div>
@@ -898,19 +1001,168 @@
             </p>
           </div>
         </article>
-
-        <article class="card" aria-labelledby="coming">
-          <div class="card-icon" aria-hidden="true">✨</div>
-          <h2 id="coming">Coming soon</h2>
-          <ul class="features">
-            <li>Level editors for P3GL Adventure and Mini Golf</li>
-            <li>Import and export of levels and boards</li>
-            <li>Simple sharing for families and caregivers</li>
-            <li>Docs and quick start guides</li>
-          </ul>
-          <p class="hint">Built with simplicity, clarity, and accessibility in mind.</p>
-        </article>
       </div>
+      
+      <section class="update-section" style="width: 100%; max-width: 1100px; margin: 48px 0;">
+        <div class="section-header">
+            <h2>Update January 2026</h2>
+            <p>We added multiple new games and tools. Many of these include level and game editors, allowing families to completely customize the experience.</p>
+        </div>
+        
+        <div class="game-grid">
+            <!-- Tools -->
+            <article class="game-card">
+              <img src="bennyshub/images/tools/keyboard.png" alt="Keyboard" loading="lazy">
+              <div class="game-card-content">
+                <h3>Keyboard</h3>
+                <div class="pill-container"><span class="genre-pill">Communication</span></div>
+                <p>Predictive, simple input mapped for two-button access.</p>
+                <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/tools/keyboard/index.html', 'Keyboard')">Launch Tool</a>
+              </div>
+            </article>
+            
+            <article class="game-card">
+                <img src="bennyshub/images/tools/phraseboard.png" alt="Phrase & Media Board" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Phrase & Media Board</h3>
+                  <div class="pill-container"><span class="genre-pill">Communication</span></div>
+                  <p>Editable phrase & media tiles with scanning and speak-out.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/tools/phraseboard/index.html', 'Phrase Board')">Launch Tool</a>
+                </div>
+            </article>
+            
+            <article class="game-card">
+                <img src="bennyshub/images/tools/ytsearch.png" alt="YouTube Search" loading="lazy">
+                <div class="game-card-content">
+                  <h3>YouTube Search</h3>
+                  <div class="pill-container"><span class="genre-pill">Entertainment</span></div>
+                  <p>Search and watch YouTube videos with accessible scanning controls.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/tools/ytsearch/index.html', 'YouTube Search')">Launch Tool</a>
+                </div>
+            </article>
+
+            <!-- Games -->
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysays.png" alt="Benny Says" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Benny Says</h3>
+                  <div class="pill-container"><span class="genre-pill">Memory</span></div>
+                  <p>A simon says style game where you match the sequence.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSAYS/index.html', 'Benny Says')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysbaseball.png" alt="Benny's Baseball" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Benny's Baseball</h3>
+                  <div class="pill-container"><span class="genre-pill">Sports</span></div>
+                  <p>Full baseball simulation game with no reaction needed.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSBASEBALL/index.html', 'Benny\'s Baseball')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysbasketball.png" alt="Benny's Basketball Shooter" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Basketball Shooter</h3>
+                  <div class="pill-container"><span class="genre-pill">Sports</span></div>
+                  <p>Fun basketball shooting game with special bonus modes.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSBASKETBALLSHOOTER/index.html', 'Basketball Shooter')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysbowling.png" alt="Benny's Bowling" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Benny's Bowling</h3>
+                  <div class="pill-container"><span class="genre-pill">Sports</span></div>
+                  <p>Bowling game with physics, ball styles, and themes.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSBOWLING/index.html', 'Benny\'s Bowling')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysbugblaster.png" alt="Benny's Bug Blaster" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Bug Blaster</h3>
+                  <div class="pill-container"><span class="genre-pill">Strategy</span></div>
+                  <p>Tower defense style game where you squash bugs.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSBUGBLASTER/index.html', 'Bug Blaster')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennyscheckers.png" alt="Benny's Chess and Checkers" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Chess & Checkers</h3>
+                  <div class="pill-container"><span class="genre-pill">Board</span></div>
+                  <p>Classic Chess or Checkers vs computer or friend.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSCHESSCHECKERS/index.html', 'Chess & Checkers')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysmatchymatch.png" alt="Benny's Matchy Match" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Matchy Match</h3>
+                  <div class="pill-container"><span class="genre-pill">Puzzle</span><span class="genre-pill">Editor</span></div>
+                  <p>Matching game with competitive modes. Includes Editor.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSMATCHYMATCH/index.html', 'Matchy Match')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennysminigolf.png" alt="Benny's Mini Golf" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Mini Golf</h3>
+                  <div class="pill-container"><span class="genre-pill">Sports</span><span class="genre-pill">Editor</span></div>
+                  <p>Top-down minigolf for up to 4 players. Includes Course Editor.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSMINIGOLF/index.html', 'Mini Golf')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennyspeggle.png" alt="Benny's P3GL Game" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Benny's P3GL</h3>
+                  <div class="pill-container"><span class="genre-pill">Arcade</span><span class="genre-pill">Editor</span></div>
+                  <p>Peggle style game with campaign/level editor.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSPEGGLE/index.html', 'Benny\'s P3GL')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennystictactoe.png" alt="Benny's Tic Tac Toe" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Tic Tac Toe</h3>
+                  <div class="pill-container"><span class="genre-pill">Strategy</span></div>
+                  <p>Play vs computer or friends.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSTICTACTOE/index.html', 'Tic Tac Toe')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/bennyswordjumble.png" alt="Benny's Word Jumble" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Word Jumble</h3>
+                  <div class="pill-container"><span class="genre-pill">Puzzle</span></div>
+                  <p>Rearrange the word to advance.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/BENNYSWORDJUMBLE/index.html', 'Word Jumble')">Play Game</a>
+                </div>
+            </article>
+
+            <article class="game-card">
+                <img src="bennyshub/images/games/triviamaster.png" alt="Benny's Trivia Master" loading="lazy">
+                <div class="game-card-content">
+                  <h3>Trivia Master</h3>
+                  <div class="pill-container"><span class="genre-pill">Trivia</span><span class="genre-pill">Editor</span></div>
+                  <p>Trivia engine to build your own accessible trivia games.</p>
+                  <a class="btn secondary" href="#" onclick="event.preventDefault(); openApp('bennyshub/apps/games/TRIVIAMASTER/index.html', 'Trivia Master')">Play Game</a>
+                </div>
+            </article>
+        </div>
+      </section>
 
       <!-- Nonprofit Foundation Section -->
       <section class="nonprofit-banner">
@@ -994,6 +1246,16 @@ https://narbehouse.com.</div>
     </main>
   </div>
 
+    <div id="iframe-app-container" class="iframe-container">
+        <div class="iframe-header">
+            <button class="iframe-back" onclick="closeApp(true)">← Exit to Benny's Hub</button>
+            <div id="iframe-title" class="iframe-title">App</div>
+        </div>
+        <div class="iframe-wrapper">
+            <iframe id="app-iframe" src="about:blank" title="App Content" width="100%" height="100%" frameborder="0" allow="autoplay; fullscreen"></iframe>
+        </div>
+    </div>
+
   <noscript>
     <div style="padding:20px; color:#fff; text-align:center; background:rgba(255,92,0,0.1); border-bottom: 2px solid var(--narbe-orange);">
       This site works best with JavaScript enabled. Links still function without scripts.
@@ -1002,6 +1264,56 @@ https://narbehouse.com.</div>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // App Launcher Logic
+    function openApp(path, title) {
+        const container = document.getElementById('iframe-app-container');
+        const iframe = document.getElementById('app-iframe');
+        const titleEl = document.getElementById('iframe-title');
+        
+        if (!container || !iframe) return;
+        
+        iframe.src = path;
+        titleEl.textContent = title;
+        container.classList.add('active');
+        
+        // Prevent body scrolling
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeApp(redirectToHub = false) {
+        const container = document.getElementById('iframe-app-container');
+        const iframe = document.getElementById('app-iframe');
+        
+        if (!container) return;
+        
+        container.classList.remove('active');
+        
+        // Clear src to stop audio/game
+        setTimeout(() => {
+            if (iframe) iframe.src = 'about:blank';
+            
+            if (redirectToHub) {
+                window.location.href = 'bennyshub/index.html';
+            }
+        }, 300);
+        
+        // Restore body scrolling
+        document.body.style.overflow = '';
+    }
+
+    // Listen for messages from iframe content
+    window.addEventListener('message', (event) => {
+      // Handle exit/back requests from games
+      if (event.data && event.data.action === 'focusBackButton') {
+        const container = document.getElementById('iframe-app-container');
+        if (container && container.classList.contains('active')) {
+          // User requested "Exit" from within the game.
+          // As per request, redirect to bennyshub instead of staying on index.
+          closeApp(true);
+        }
+      }
+    });
   </script>
 </body>
 </html>
