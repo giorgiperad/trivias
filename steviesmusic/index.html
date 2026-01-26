@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stevie's Music Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Background Visualizer -->
+    <div class="background-visualizer">
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+        <div class="bg-bar"></div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <button id="edit-btn">Edit Playlist</button>
+            <input type="file" id="mp3-upload" accept="audio/*" multiple style="display: none;">
+        </div>
+        <button id="theme-btn">Change Theme</button>
+    </header>
+
+    <div class="container">
+        <div id="main-click-area">
+            <div class="title-container">
+                <h1 class="title-stevie">STEVIE'S</h1>
+                <h2 class="title-music">MUSIC PLAYER</h2>
+                <p id="status-text" style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Ready</p>
+            </div>
+            
+            <div id="media-container">
+                <!-- Visualizer (for Audio) -->
+                <div class="visualizer">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </div>
+
+                <!-- YouTube Player (Visible now) -->
+                <div id="player-wrapper">
+                    <div id="player"></div>
+                    <!-- Overlay removed to allow interaction with iframe (Ad Skipping) -->
+                </div>
+            </div>
+            
+            <div class="click-instruction">
+                Click Background or Use Spacebar
+                <div style="font-size: 0.5em; margin-top: 10px; opacity: 0.8; line-height: 1.4;">
+                    Short Press = Stop • 2nd Press = Next<br>
+                    Long Press (3s) = Previous
+                </div>
+            </div>
+        </div>
+
+        <!-- Old button removed, functionality moved to main-click-area -->
+        <!-- <button id="big-play-btn">Press Spacebar to Play/Shuffle</button> -->
+
+        <div id="edit-modal" class="modal hidden">
+            <div class="modal-content">
+                <span id="close-modal">&times;</span>
+                <h2>Edit Playlist</h2>
+                
+                <div class="edit-section">
+                    <h3>1. Web Links</h3>
+                    <p>Enter YouTube, Spotify, SoundCloud, Google Drive, or Direct Audio Links:</p>
+                    <div id="link-slots-container"></div>
+                    <button id="add-link-btn" style="margin-top: 10px; padding: 5px 10px; cursor: pointer;">+ Add Link</button>
+                </div>
+
+                <div class="edit-section">
+                    <h3>2. Local Files</h3>
+                    <p>Add MP3/WAV files from your device:</p>
+                    <button id="modal-add-mp3-btn" style="background-color: #ddd; color: #333; margin-bottom: 10px;">Select Files...</button>
+                    <div id="local-file-list" style="max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 5px; margin-bottom: 10px; text-align: left; font-size: 14px;">
+                        <em style="color: #888;">No local files added yet.</em>
+                    </div>
+                </div>
+
+                <button id="save-playlist-btn">Save & Update Playlist</button>
+                <button id="reset-playlist-btn" style="background-color: #777; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Reset to Default Playlist</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js?v=1.3"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
