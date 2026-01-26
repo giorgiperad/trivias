@@ -54,5 +54,5 @@ Ensure the following files exist:
 ## License
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License v3. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; see LICENSE for details.
 
-© 2025 NARBEHOUSE, LLC — Modifications  
+© 2026 NARBEHOUSE, LLC — Modifications  
 © Original authors (see upstream repository)

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2025‑10 — Accessible Edition (NARBEHOUSE, LLC)
+## 2026‑10 — Accessible Edition (NARBEHOUSE, LLC)
 - Added single‑switch navigation (Space scans forward; hold Space ≥3s scans backward every 2s; Enter selects).
 - Aiming via Space (5s oscillation; resumes from release), thicker aiming line; charge‑to‑throw via Enter (0–3s, non‑linear power).
 - TTS (English voices only, up to 8): UI focus, settings changes, outcomes ("Strike!"), frame calls, final score.

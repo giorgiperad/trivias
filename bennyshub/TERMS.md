@@ -1,6 +1,6 @@
 # Terms of Use & License
 
-**Effective Date:** December 2025
+**Effective Date:** December 2026
 **Owner:** NARBE Foundation
 
 This software is an open-source initiative managed by the **NARBE Foundation**, a 501(c)(3) nonprofit organization dedicated to accessibility.

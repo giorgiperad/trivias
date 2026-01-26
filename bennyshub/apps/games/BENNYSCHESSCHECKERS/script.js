@@ -307,6 +307,7 @@ const menus = {
             action: () => {
                 if(window.NarbeScanManager) {
                      window.NarbeScanManager.updateSettings({autoScan: !window.NarbeScanManager.getSettings().autoScan});
+                     refreshCurrentMenu();
                 } else {
                      toggleSetting('autoScan');
                 }
@@ -314,6 +315,7 @@ const menus = {
             onPrev: () => {
                  if(window.NarbeScanManager) {
                      window.NarbeScanManager.updateSettings({autoScan: !window.NarbeScanManager.getSettings().autoScan});
+                     refreshCurrentMenu();
                 } else {
                      toggleSetting('autoScan');
                 }
@@ -325,11 +327,17 @@ const menus = {
                  return `Scan Speed: ${config.scanSpeeds[settings.scanSpeedIndex].label}`;
             },
             action: () => {
-                if(window.NarbeScanManager) window.NarbeScanManager.cycleScanSpeed();
+                if(window.NarbeScanManager) {
+                    window.NarbeScanManager.cycleScanSpeed();
+                    refreshCurrentMenu();
+                }
                 else cycleSetting('scanSpeedIndex', 1, config.scanSpeeds.length);
             },
             onPrev: () => {
-                if(window.NarbeScanManager) window.NarbeScanManager.cycleScanSpeed(); 
+                if(window.NarbeScanManager) {
+                    window.NarbeScanManager.cycleScanSpeed();
+                    refreshCurrentMenu();
+                }
                 else cycleSetting('scanSpeedIndex', -1, config.scanSpeeds.length);
             }
         },
