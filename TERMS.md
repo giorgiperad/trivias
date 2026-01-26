@@ -13,7 +13,7 @@ This software is licensed under the **MIT License**. This means you are free to 
 
 ### The MIT License
 
-> **Copyright (c) 2025 NARBE Foundation**
+> **Copyright (c) 2026 NARBE Foundation**
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 >
@@ -51,6 +51,6 @@ In no event shall the **NARBE Foundation**, **NARBE LLC**, or any copyright hold
 
 ## Attribution
 
-If you adapt or share this Software, you must retain the original copyright notice (`"Copyright (c) 2025 NARBE Foundation"`) in the source code.
+If you adapt or share this Software, you must retain the original copyright notice (`"Copyright (c) 2026 NARBE Foundation"`) in the source code.
 
 We kindly ask that you credit the **NARBE Foundation** in your user interface or "About" screen to help us reach more families in need.
