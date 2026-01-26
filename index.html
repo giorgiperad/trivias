@@ -925,6 +925,34 @@
     .iframe-wrapper{
       flex: 1; position: relative; overflow: hidden;
     }
+
+    /* Beacons Email Form Embed Styles */
+    #a567a843-7bc0-405f-ba40-df503d479211 {
+        width: 100% !important;
+    }
+    #a567a843-7bc0-405f-ba40-df503d479211 h1,
+    #a567a843-7bc0-405f-ba40-df503d479211 h2,
+    #a567a843-7bc0-405f-ba40-df503d479211 h3,
+    #a567a843-7bc0-405f-ba40-df503d479211 p,
+    #a567a843-7bc0-405f-ba40-df503d479211 span:not([class]) {
+        display: none !important;
+    }
+    #a567a843-7bc0-405f-ba40-df503d479211 img {
+        width: 360px !important;
+        height: auto !important;
+        object-fit: contain !important;
+        margin: 0 auto 15px auto !important;
+        display: block !important;
+        border-radius: 12px;
+    }
+    #a567a843-7bc0-405f-ba40-df503d479211 form {
+        margin: 0 auto !important;
+    }
+    #a567a843-7bc0-405f-ba40-df503d479211 > div {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
   </style>
 </head>
 <body>
@@ -1003,7 +1031,7 @@
         </article>
       </div>
       
-      <section class="update-section" style="width: 100%; max-width: 1100px; margin: 48px 0;">
+      <section class="update-section" style="width: 100%; max-width: 1100px; margin: 48px auto;">
         <div class="section-header">
             <h2>Update January 2026</h2>
             <p>We added multiple new games and tools. Many of these include level and game editors, allowing families to completely customize the experience.</p>
@@ -1164,6 +1192,15 @@
         </div>
       </section>
 
+      <!-- Beacons Email Signup Section -->
+      <section style="width: 100%; max-width: 1100px; margin: 48px auto; background: var(--card); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 48px 24px; text-align: center;">
+        <h2 style="color: var(--narbe-orange); margin-bottom: 12px; font-size: 28px;">Stay Updated!</h2>
+        <p style="color: var(--muted); max-width: 600px; margin: 0 auto 32px auto; font-size: 16px; line-height: 1.6;">
+            We'll send emails when we release new games, tools, and exclusive updates from NARBE House. We love sharing what we're building and learning with the assistive tech community.
+        </p>
+        <div id="a567a843-7bc0-405f-ba40-df503d479211"></div>
+      </section>
+
       <!-- Nonprofit Foundation Section -->
       <section class="nonprofit-banner">
         <h2>Our Nonprofit Foundation</h2>
@@ -1264,6 +1301,18 @@ https://narbehouse.com.</div>
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Load Beacons Email Script
+    (function loadEmailScript() {
+        if (document.getElementById('beacons-email-script')) return;
+        var s = document.createElement("script");
+        var t = Math.floor(new Date().getTime()/120000);
+        s.id = 'beacons-email-script';
+        s.type = "module";
+        s.async = 1;
+        s.src = `https://beacons.ai/embeds/emailForm.js?v=${t}&b=narbehouse&f=a567a843-7bc0-405f-ba40-df503d479211`;
+        document.body.appendChild(s);
+    })();
 
     // App Launcher Logic
     function openApp(path, title) {
