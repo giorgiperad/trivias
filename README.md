@@ -1,6 +1,6 @@
 # Narbehouse.github.io (Foundation Edition)
 
-**© 2025 NARBE Foundation.**
+**© 2026 NARBE Foundation.**
 *Open Source Accessibility Software for the Disability Community.*
 
 This project is licensed under the **MIT License**, meaning it is free for personal, educational, and commercial use. We believe accessibility tools should be available to everyone, regardless of their ability to pay.
@@ -25,7 +25,7 @@ Users requiring professional setup, white-labeling, or guaranteed uptime may con
 
 **MIT License**
 
-Copyright (c) 2025 NARBE Foundation
+Copyright (c) 2026 NARBE Foundation
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
