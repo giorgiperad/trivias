@@ -1957,69 +1957,179 @@
     /**
      * PUBLIC API: External Switch Control / Game Hub Integration
      * Allows wrapper apps to trigger inputs directly, bypassing keyboard simulation.
-     * Usage: window.GameHub.triggerAction('select') or window.GameHub.triggerAction('space')
+     * Usage: 
+     * - Atomic: window.GameHub.triggerAction('select')
+     * - Holdable: window.GameHub.press('select') then window.GameHub.release('select')
      */
     window.GameHub = {
-      triggerAction: function(actionName) {
-        if (!actionName) return;
-        const action = actionName.toLowerCase();
+      // Maps action names to key events
+      _mapActionToKey: function(action) {
+        if (!action) return null;
+        const act = action.toLowerCase();
+        if (['select', 'enter', 'return'].includes(act)) {
+           return { key: 'Enter', code: 'Enter', keyCode: 13 };
+        }
+        if (['space', 'scan'].includes(act)) {
+           return { key: ' ', code: 'Space', keyCode: 32 };
+        }
+        return null;
+      },
+
+      /**
+       * Simulates a key press (keydown) for the given action
+       */
+      press: function(actionName) {
+        const map = this._mapActionToKey(actionName);
+        if(!map) return;
         
         // 1. Handle Fullscreen Modal interactions
         if (!fullscreenModal.classList.contains('hidden')) {
-          if (action === 'space' || action === 'scan') {
-             // Toggle focus
-             const isFullscreenBtn = document.activeElement === modalFullscreenBtn;
-             const target = isFullscreenBtn ? modalCancelBtn : modalFullscreenBtn;
-             target.focus();
-             speak(target === modalCancelBtn ? 'Cancel' : 'Fullscreen');
-          } else if (['select', 'enter', 'return'].includes(action)) {
-             // Click active element
-             if (document.activeElement === modalFullscreenBtn) modalFullscreenBtn.click();
-             else if (document.activeElement === modalCancelBtn) modalCancelBtn.click();
-          }
-          return;
+           if (map.key === ' ') spacePressed = true;
+           if (map.key === 'Enter') enterPressed = true;
+           return;
         }
 
         // 2. Handle Game/Tool Iframe interactions
-        // Prioritize forwarding events to the game iframe for gameplay
         if (iframeContainer.classList.contains('active')) {
            if (appIframe && appIframe.contentWindow) {
-             // Forward via postMessage for modern apps
-             appIframe.contentWindow.postMessage({ type: 'gamehub-input', action: action }, '*');
+             // Forward status via postMessage
+             appIframe.contentWindow.postMessage({ type: 'gamehub-input-down', action: actionName }, '*');
              
-             // Attempt to dispatch native event to iframe document (Same Origin support)
              try {
-               const isSelect = ['select', 'enter', 'return'].includes(action);
-               const key = isSelect ? 'Enter' : ' ';
-               const code = isSelect ? 'Enter' : 'Space';
-               const keyCode = isSelect ? 13 : 32;
-               
                // Dispatch keydown
                const kDown = new KeyboardEvent('keydown', {
-                 key: key, code: code, keyCode: keyCode, which: keyCode,
+                 key: map.key, code: map.code, keyCode: map.keyCode, which: map.keyCode,
                  bubbles: true, cancelable: true, view: appIframe.contentWindow
                });
                appIframe.contentWindow.document.dispatchEvent(kDown);
-               
-               // Dispatch keyup after short delay
-               setTimeout(() => {
-                 const kUp = new KeyboardEvent('keyup', {
-                   key: key, code: code, keyCode: keyCode, which: keyCode,
-                   bubbles: true, cancelable: true, view: appIframe.contentWindow
-                 });
-                 appIframe.contentWindow.document.dispatchEvent(kUp);
-               }, 50);
              } catch(e) { /* Expected for cross-origin iframes */ }
            }
            return; 
         }
 
         // 3. Handle standard Hub Navigation
-        if (action === 'space' || action === 'scan') {
-           focusNext();
-        } else if (['select', 'enter', 'return'].includes(action)) {
-           activateFocused();
+        if (isTransitioning) return;
+        
+        // Simulate keydown logic for hub
+        if (map.key === ' ') {
+           if(!spacePressed) {
+             spacePressed = true;
+             spaceHoldStartTime = Date.now();
+             
+             // Backwards scan logic
+             spaceHoldTimeout = setTimeout(() => {
+               if (spacePressed && !iframeContainer.classList.contains('active') && fullscreenModal.classList.contains('hidden')) {
+                 speak('Backwards scanning');
+                 focusPrevious();
+                 
+                 backwardsScanInterval = setInterval(() => {
+                   if (spacePressed && !iframeContainer.classList.contains('active') && fullscreenModal.classList.contains('hidden')) {
+                     focusPrevious();
+                   } else {
+                     clearInterval(backwardsScanInterval);
+                     backwardsScanInterval = null;
+                   }
+                 }, getScanDelay());
+               }
+             }, BACKWARDS_SCAN_THRESHOLD);
+           }
+        } else if (map.key === 'Enter') {
+           if(!enterPressed) {
+             enterPressed = true;
+             suppressEnterClick = true;
+           }
         }
+      },
+
+      /**
+       * Simulates a key release (keyup) for the given action
+       */
+      release: function(actionName) {
+        const map = this._mapActionToKey(actionName);
+        if(!map) return;
+
+        // 1. Handle Fullscreen Modal interactions
+        if (!fullscreenModal.classList.contains('hidden')) {
+           if (map.key === ' ') {
+             spacePressed = false;
+             // Toggle logic
+             const isFullscreenBtn = document.activeElement === modalFullscreenBtn;
+             const target = isFullscreenBtn ? modalCancelBtn : modalFullscreenBtn;
+             target.focus();
+             speak(target === modalCancelBtn ? 'Cancel' : 'Fullscreen');
+           } else if (map.key === 'Enter') {
+             enterPressed = false;
+             // Click active
+             if (document.activeElement === modalFullscreenBtn) modalFullscreenBtn.click();
+             else if (document.activeElement === modalCancelBtn) modalCancelBtn.click();
+           }
+           return;
+        }
+
+        // 2. Handle Game/Tool Iframe interactions
+        if (iframeContainer.classList.contains('active')) {
+           if (appIframe && appIframe.contentWindow) {
+             // Forward status via postMessage
+             appIframe.contentWindow.postMessage({ type: 'gamehub-input-up', action: actionName }, '*');
+             
+             try {
+               // Dispatch keyup
+               const kUp = new KeyboardEvent('keyup', {
+                 key: map.key, code: map.code, keyCode: map.keyCode, which: map.keyCode,
+                 bubbles: true, cancelable: true, view: appIframe.contentWindow
+               });
+               appIframe.contentWindow.document.dispatchEvent(kUp);
+             } catch(e) { /* Expected for cross-origin iframes */ }
+           }
+           return; 
+        }
+
+        // 3. Handle standard Hub Navigation
+        if (isTransitioning) {
+            spacePressed = false; 
+            enterPressed = false;
+            if (spaceHoldTimeout) { clearTimeout(spaceHoldTimeout); spaceHoldTimeout = null; }
+            if (backwardsScanInterval) { clearInterval(backwardsScanInterval); backwardsScanInterval = null; }
+            return;
+        }
+
+        if (map.key === ' ') {
+           if(spacePressed) {
+             spacePressed = false;
+             if (spaceHoldTimeout) { clearTimeout(spaceHoldTimeout); spaceHoldTimeout = null; }
+             if (backwardsScanInterval) { clearInterval(backwardsScanInterval); backwardsScanInterval = null; }
+             
+             const holdDuration = Date.now() - (spaceHoldStartTime || 0);
+             if (holdDuration < BACKWARDS_SCAN_THRESHOLD) {
+               focusNext();
+             }
+           }
+        } else if (map.key === 'Enter') {
+           if(enterPressed) {
+             enterPressed = false;
+             suppressEnterClick = false;
+             activateFocused();
+           }
+        }
+      },
+
+      /**
+       * Legacy trigger action (Press + Release)
+       */
+      triggerAction: function(actionName) {
+        if (!actionName) return;
+        
+        // Use press/release cycle
+        this.press(actionName);
+        
+        // Also send legacy postMessage for iframes that might rely on 'gamehub-input' event only
+        if (iframeContainer.classList.contains('active') && appIframe && appIframe.contentWindow) {
+             appIframe.contentWindow.postMessage({ type: 'gamehub-input', action: actionName }, '*');
+        }
+
+        setTimeout(() => {
+          this.release(actionName);
+        }, 50);
       }
     };
   </script>
