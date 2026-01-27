@@ -2001,6 +2001,11 @@
                  key: map.key, code: map.code, keyCode: map.keyCode, which: map.keyCode,
                  bubbles: true, cancelable: true, view: appIframe.contentWindow
                });
+               
+               // Safari/WebKit fix: keyCode property is often read-only/0 in synthetic events
+               Object.defineProperty(kDown, 'keyCode', {get : () => map.keyCode});
+               Object.defineProperty(kDown, 'which', {get : () => map.keyCode});
+               
                appIframe.contentWindow.document.dispatchEvent(kDown);
              } catch(e) { /* Expected for cross-origin iframes */ }
            }
@@ -2078,6 +2083,11 @@
                  key: map.key, code: map.code, keyCode: map.keyCode, which: map.keyCode,
                  bubbles: true, cancelable: true, view: appIframe.contentWindow
                });
+
+               // Safari/WebKit fix: keyCode property is often read-only/0 in synthetic events
+               Object.defineProperty(kUp, 'keyCode', {get : () => map.keyCode});
+               Object.defineProperty(kUp, 'which', {get : () => map.keyCode});
+
                appIframe.contentWindow.document.dispatchEvent(kUp);
              } catch(e) { /* Expected for cross-origin iframes */ }
            }
