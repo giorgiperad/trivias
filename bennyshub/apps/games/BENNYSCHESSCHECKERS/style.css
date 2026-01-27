@@ -224,8 +224,8 @@ body::before {
 
 .checkers-board {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-rows: repeat(8, minmax(0, 1fr));
     width: min(85vw, 85vh);
     height: min(85vw, 85vh);
     border: 10px solid #333;

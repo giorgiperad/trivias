@@ -609,7 +609,8 @@ function renderBoard() {
                     piece.className = 'chess-piece';
                     piece.innerText = displayPiece;
                     piece.style.color = playerColors[pColorIndex].hex;
-                    piece.style.fontSize = '40px';
+                    // Use responsive font size
+                    piece.style.fontSize = 'min(40px, 8vmin)';
                     piece.style.display = 'flex';
                     piece.style.justifyContent = 'center';
                     piece.style.alignItems = 'center';
@@ -677,8 +678,13 @@ function startGame(mode) {
     updateGameScanItems();
     renderBoard();
     
-    showTurnNotification("White's Turn");
-    speak("Game Started. White's Turn.");
+    let turnText = "White's Turn";
+    if (state.gameType === 'checkers') {
+        turnText = "Player 1's Turn";
+    }
+    
+    showTurnNotification(turnText);
+    speak("Game Started. " + turnText);
     
     // If Human is Black (-1) and It's White's Turn (1), Computer moves
     if (state.gameType === 'chess' && state.gameMode === 'single' && state.humanSide === -1) {
