@@ -362,6 +362,8 @@
         speak('Round ' + round);
         phase = Phase.SHOWING;
         setTimeout(showSequence, 320);
+      } else {
+        startAutoScan();
       }
     } else {
       phase = Phase.GAMEOVER;
@@ -375,6 +377,7 @@
       phase = Phase.MAIN;
       mainHighlight = -1; // No highlight until spacebar is pressed
       flashingIndex = -1;
+      startAutoScan();
     }, 1500);
   }
 
@@ -423,18 +426,17 @@
       // Back
       phase = Phase.MAIN;
       mainHighlight = 1; // Defaults back to Settings
+      startAutoScan();
     }
     updateSettingsItems();
     if (phase === Phase.SETTINGS && settingsHighlight < settingsItems.length) {
        speak(settingsItems[settingsHighlight]);
     }
     // Update active auto scan
-    if (settingsHighlight === 2 || settingsHighlight === 3) {
-       if (window.NarbeScanManager.getSettings().autoScan) {
-          startAutoScan();
-       } else {
-          stopAutoScan();
-       }
+    if (window.NarbeScanManager.getSettings().autoScan) {
+       startAutoScan();
+    } else {
+       stopAutoScan();
     }
   }
 
@@ -498,12 +500,14 @@
              phase = Phase.DIFFICULTY;
              diffHighlight = -1;
              speak('Select Difficulty');
+             startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
              settingsHighlight = 0;
              updateSettingsItems();
              speak('Settings');
              speak(settingsItems[0]);
+             startAutoScan();
           } else if (sel === 'Exit Game') {
              exitApp();
           }
@@ -518,6 +522,7 @@
              phase = Phase.MAIN;
              mainHighlight = 0;
              speak('Main Menu');
+             startAutoScan();
           } else {
              // Speak Round 1 immediately in the user gesture before any delays
              speak('Round 1');
@@ -568,12 +573,14 @@
              phase = Phase.DIFFICULTY;
              diffHighlight = -1;
              speak('Select Difficulty');
+             startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
              settingsHighlight = 0;
              updateSettingsItems();
              speak('Settings');
              speak(settingsItems[0]);
+             startAutoScan();
           } else if (sel === 'Exit Game') {
              exitApp();
           }
@@ -589,6 +596,7 @@
              phase = Phase.MAIN;
              mainHighlight = 0;
              speak('Main Menu');
+             startAutoScan();
            } else {
              // Speak Round 1 immediately in the user gesture before any delays
              speak('Round 1');
@@ -649,6 +657,7 @@
              phase = Phase.DIFFICULTY;
              diffHighlight = -1;
              speak('Select Difficulty');
+             startAutoScan();
           } else if (sel === 'Settings') {
              phase = Phase.SETTINGS;
              settingsHighlight = 0;
@@ -670,6 +679,7 @@
              phase = Phase.MAIN;
              mainHighlight = 0;
              speak('Main Menu');
+             startAutoScan();
           } else {
              // Speak Round 1 immediately in the user gesture before any delays
              speak('Round 1');
