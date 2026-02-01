@@ -91,6 +91,91 @@ window.NarbeScanManager = (function() {
     }
   });
 
+  // Universal Input Cooldown
+  // Blocks rapid repetitive inputs (spamming) to prevent accidental double-scanning
+  // Implements a strict .5s cooldown after any valid release (Key Up / Click)
+  const INPUT_COOLDOWN_MS = 250;
+  let lastReleaseTime = 0; // Shared timestamp for the last valid release
+  const blockedInteractions = new Set(); // Set of IDs currently in a blocked sequence
+
+  function handleGlobalInput(e) {
+    let id;
+    let isTargetEvent = false;
+
+    // 1. Identify Source
+    if (e.type.startsWith('key')) {
+      // Only target Space and Enter for cooldown logic as requested
+      if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+        id = e.code;
+        isTargetEvent = true;
+      }
+    } else {
+      id = 'pointer'; // Group mouse/touch/pointer as one
+      isTargetEvent = true;
+    }
+
+    // Pass through non-target keys (e.g. arrows, letters)
+    if (!isTargetEvent) return;
+
+    const now = Date.now();
+
+    // 2. Start of Sequence (Down)
+    // Check if we start a new press. If we are in cooldown, BLOCK IT.
+    if (e.type === 'keydown' || e.type === 'mousedown' || e.type === 'touchstart') {
+      
+      // Strict global cooldown check from last release
+      if (now - lastReleaseTime < INPUT_COOLDOWN_MS) {
+        blockedInteractions.add(id);
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        return false;
+      }
+      
+      // Also block if this specific source is already flagged (e.g. held down repeats)
+      if (blockedInteractions.has(id)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        return false;
+      }
+    }
+
+    // 3. End of Sequence (Up/Click)
+    else if (e.type === 'keyup' || e.type === 'mouseup' || e.type === 'touchend' || e.type === 'click' || e.type === 'touchcancel') {
+      
+      // If this sequence was blocked, consume the release event and clear the flag
+      if (blockedInteractions.has(id)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+
+        // Clear flag on final events
+        // KeyUp is final for keys. Click is final for mouse. TouchEnd/Cancel for touch.
+        const isFinalEvent = (e.type === 'keyup' || e.type === 'click' || e.type === 'touchend' || e.type === 'touchcancel');
+        
+        // Ensure we clear 'pointer' eventually even if click doesn't fire (mouseup fallback if needed? 
+        // No, let's stick to click for robustness against click-listeners. Stuck state (rare) requires one dead click to clear.)
+        if (isFinalEvent) { 
+             blockedInteractions.delete(id);
+        } else if (e.type === 'mouseup') {
+             // For mouseup, we keep the block active to catch the subsequent click.
+        }
+        return false;
+      }
+
+      // Valid release: Update the cooldown timer
+      if (e.type === 'keyup' || e.type === 'mouseup' || e.type === 'touchend') {
+        lastReleaseTime = now;
+      }
+    }
+  }
+
+  // Register capturing listeners to intercept events before they reach apps
+  ['keydown', 'keyup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'].forEach(type => {
+    window.addEventListener(type, handleGlobalInput, true);
+  });
+
   // Public API
   return {
     /**
