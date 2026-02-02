@@ -296,8 +296,8 @@ body::before {
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 5vmin; /* Scale with board */
-    color: inherit;
-    filter: invert(1); /* Make it visible */
+    color: gold;
+    text-shadow: 1px 1px 2px black, -1px -1px 2px black;
 }
 
 .checker.selected {
