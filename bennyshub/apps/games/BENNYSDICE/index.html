@@ -8,6 +8,7 @@
     <script src="../../../shared/scan-manager.js"></script>
     <script src="../../../shared/voice-manager.js"></script>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
     <!-- Import maps polyfill -->
     <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
     
@@ -162,9 +163,9 @@
             </div>
             <!-- Dice Row Removed - Interaction moved to board -->
             <div class="action-buttons" style="display:flex; gap:15px; justify-content:center; margin-top:20px;">
-                <button id="yarkleRollBtn" class="dice-btn" style="background:#2e7d32; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerYarkleRoll()" data-scan="true">ROLL</button>
-                <button id="yarkleBankBtn" class="dice-btn" style="background:#1565c0; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerYarkleBank()" data-scan="true">BANK</button>
-                <button id="yarklePauseBtn" class="dice-btn" style="background:#444; padding:15px 20px; font-size:1.2em;" onclick="setAppState('PAUSE')" data-scan="true">Pause</button>
+                <button id="yarkleRollBtn" class="dice-btn" style="background:#2b572b; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerYarkleRoll()" data-scan="true">ROLL</button>
+                <button id="yarkleBankBtn" class="dice-btn" style="background:#002e8a; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerYarkleBank()" data-scan="true">BANK</button>
+                <button id="yarklePauseBtn" class="dice-btn" style="background:#555; padding:15px 20px; font-size:1.2em;" onclick="setAppState('PAUSE')" data-scan="true">Pause</button>
             </div>
             <div id="yarkle-message" style="color:#ffeb3b; margin-top:15px; font-size:1.3em; text-align:center;"></div>
         </div>
@@ -180,9 +181,9 @@
             </div>
             <!-- Dice Row Removed - Interaction moved to board -->
             <div class="action-buttons" style="display:flex; gap:15px; justify-content:center; margin-top:20px;">
-                <button id="fahtzeeRollBtn" class="dice-btn" style="background:#2e7d32; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerFahtzeeRoll()" data-scan="true">ROLL</button>
-                <button id="fahtzeeScoreBtn" class="dice-btn" style="background:#1565c0; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerFahtzeeScore()" data-scan="true">TAKE POINTS</button>
-                <button id="fahtzeePauseBtn" class="dice-btn" style="background:#444; padding:15px 20px; font-size:1.2em;" onclick="setAppState('PAUSE')" data-scan="true">Pause</button>
+                <button id="fahtzeeRollBtn" class="dice-btn" style="background:#2b572b; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerFahtzeeRoll()" data-scan="true">ROLL</button>
+                <button id="fahtzeeScoreBtn" class="dice-btn" style="background:#002e8a; padding:15px 40px; font-size:1.5em; flex-grow:1; max-width:200px;" onclick="playerFahtzeeScore()" data-scan="true">TAKE POINTS</button>
+                <button id="fahtzeePauseBtn" class="dice-btn" style="background:#555; padding:15px 20px; font-size:1.2em;" onclick="setAppState('PAUSE')" data-scan="true">Pause</button>
             </div>
             <div id="fahtzee-message" style="color:#ffeb3b; font-size:1.3em; text-align:center; margin-top:15px;"></div>
         </div>

@@ -10,7 +10,8 @@ window.appState = {
     scanIndex: 0,
     diceConfig: { d4: 0, d6: 0, d8: 0, d10: 0, d12: 0, d20: 0 },
     addDie: null, // Will be assigned
-    initiativePhase: false // True during initiative roll - locks controls
+    initiativePhase: false, // True during initiative roll - locks controls
+    isRolling: false // True during dice roll animation
 };
 
 // --- Input State for Backward Scan ---
@@ -288,6 +289,14 @@ const SoundFX = {
 document.addEventListener('click', () => SoundFX.init(), { once: true });
 document.addEventListener('keydown', () => SoundFX.init(), { once: true });
 
+function showPopupText(text, type = 'score') {
+    const el = document.createElement('div');
+    el.className = `popup-text ${type}`;
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000); // Cleanup
+}
+
 // --- TTS System (integrated with NarbeVoiceManager) ---
 function speak(text, interrupt = true) {
     // Use NarbeVoiceManager if available - it handles ttsEnabled internally
@@ -460,8 +469,56 @@ const diceDiceContact = new CANNON.ContactMaterial(diceMaterial, diceMaterial, {
 world.addContactMaterial(diceDiceContact);
 
 // --- Floor ---
+function createTableTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // Base background (Medium Gray for tinting)
+    ctx.fillStyle = '#808080'; 
+    ctx.fillRect(0,0,512,512);
+
+    // Add noise/texture
+    for (let i = 0; i < 60000; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.05})`;
+        ctx.beginPath();
+        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Add subtle grain/scratches
+    ctx.strokeStyle = `rgba(0,0,0,0.03)`;
+    ctx.lineWidth = 1;
+    for(let i=0; i<1000; i++) {
+        ctx.beginPath();
+        const startX = Math.random()*512;
+        const startY = Math.random()*512;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + (Math.random()-0.5)*50, startY + (Math.random()-0.5)*50);
+        ctx.stroke();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(10, 10); // Repeat texture nicely
+    return tex;
+}
+
 const floorGeo = new THREE.PlaneGeometry(100, 100);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x224422, roughness: 0.9 });
+const floorMat = new THREE.MeshStandardMaterial({ 
+    color: 0x2b572b, // Base Green (Brightened)
+    map: createTableTexture(),
+    roughness: 0.8,
+    metalness: 0.1
+});
+window.floorMat = floorMat; // Expose for dynamic color changing
 const floorMesh = new THREE.Mesh(floorGeo, floorMat);
 floorMesh.rotation.x = -Math.PI / 2;
 floorMesh.receiveShadow = true;
@@ -1495,8 +1552,8 @@ function getFocusables() {
          return Array.from(document.querySelectorAll(`#${rulesId} .start-btn`));
      }
      if (appState.state === 'GAME') {
-         // During initiative phase, no controls are scannable
-         if (appState.initiativePhase) {
+         // During initiative phase or rolling, no controls are scannable
+         if (appState.initiativePhase || appState.isRolling) {
              return [];
          }
 
@@ -1513,6 +1570,11 @@ function getFocusables() {
          } else if (appState.gameMode === 'Fahtzee' && window.fahtzeeState) {
              hasRolledThisTurn = window.fahtzeeState.rollsLeft < 3; // Has rolled if less than 3 rolls left
              isPlayerTurn = window.fahtzeeState.isPlayerTurn;
+         }
+
+         // If it is NOT the player's turn (i.e. CPU turn), disable scanning
+         if (!isPlayerTurn) {
+             return [];
          }
 
          // Only include dice overlays if it's player's turn AND they have rolled,
@@ -1559,6 +1621,12 @@ function getFocusables() {
      return [];
 }
 
+function resetTableColor() {
+    const defaultColor = 0x2b572b; // Green
+    if (window.floorMat) window.floorMat.color.setHex(defaultColor);
+    if (window.scene) window.scene.background = new THREE.Color(defaultColor);
+}
+
 function refreshScanFocus(shouldSpeak = true) {
     const targets = getFocusables();
     // Clear all focus
@@ -1574,6 +1642,38 @@ function refreshScanFocus(shouldSpeak = true) {
 
     const target = targets[appState.scanIndex];
     target.classList.add('focused');
+
+    // Dynamic background based on button function
+    // Roll: Green, Bank/Score: Blue, Pause: Gray
+    const rollIds = ['yarkleRollBtn', 'fahtzeeRollBtn'];
+    const bankIds = ['yarkleBankBtn', 'yarkleScoreBtn', 'fahtzeeScoreBtn']; 
+    const pauseIds = ['yarklePauseBtn', 'fahtzeePauseBtn', 'pauseBtn'];
+
+    // Using exact colors from buttons
+    let bgColor = 0x2b572b; // Restore to default floor color (Greenish) if none
+    
+    // Check for ID match first
+    if (target.id) {
+        if (rollIds.includes(target.id)) bgColor = 0x2b572b; // Green
+        else if (bankIds.includes(target.id)) bgColor = 0x002e8a; // Blue
+        else if (pauseIds.includes(target.id)) bgColor = 0x555555; // Gray (Lighter)
+        else if (target.id.startsWith('die-overlay-')) bgColor = 0x2b572b; // Scanning dice -> Green
+    } 
+    // Fallback to text matching
+    else if (target.textContent) {
+        const text = target.textContent.toUpperCase();
+        if (text.includes('ROLL')) bgColor = 0x2b572b;
+        else if (text.includes('TAKE') || text.includes('BANK')) bgColor = 0x002e8a;
+        else if (text.includes('PAUSE')) bgColor = 0x555555;
+    }
+
+    // Apply to Three.js scene background AND Floor Material
+    if (window.scene) {
+        window.scene.background = new THREE.Color(bgColor);
+    }
+    if (window.floorMat) {
+        window.floorMat.color.setHex(bgColor);
+    }
 
     // Check if this is a dice overlay
     if (target.id && target.id.startsWith('die-overlay-')) {
@@ -2027,15 +2127,25 @@ function toggleYarkleHold(index) {
     updateDiceGlows();
 }
 
-function updateYarklePreview() {
+function updateYarklePreview(shouldSpeak = true) {
     const heldValues = yarkleState.dice.filter((v, i) => yarkleState.held[i] && !yarkleState.locked[i]);
     const result = calculateYarkleScore(heldValues);
     const msg = document.getElementById('yarkle-message');
+    const turnScoreEl = document.getElementById('yarkle-turn-score');
+
+    const totalPotential = yarkleState.turnScore + result.score;
+
+    if (turnScoreEl) {
+        turnScoreEl.textContent = totalPotential;
+    }
+
     if (heldValues.length > 0) {
-        msg.textContent = `Selected: ${result.score} points`;
-        speak(`${result.score} points selected`, false);
+        msg.textContent = `Selected: ${result.score} (Total: ${totalPotential})`;
+        if (shouldSpeak) {
+             speak(`${result.score} selected. Total: ${totalPotential}`, false); 
+        }
     } else {
-        msg.textContent = '';
+        msg.textContent = `Turn Score: ${yarkleState.turnScore}`;
     }
 }
 
@@ -2095,6 +2205,8 @@ function yarkleRoll() {
     // Disable buttons during roll
     document.getElementById('yarkleRollBtn').disabled = true;
     document.getElementById('yarkleBankBtn').disabled = true;
+    appState.isRolling = true;
+    refreshScanFocus();
 
     // Get locked indices data (skip these)
     const lockedData = [];
@@ -2108,6 +2220,7 @@ function yarkleRoll() {
 
     // Roll 3D dice and get results
     throw3DDice(6, lockedData, (results) => {
+        appState.isRolling = false;
         // Apply results to unlocked dice
         for (let i = 0; i < 6; i++) {
             if (!yarkleState.locked[i]) {
@@ -2128,6 +2241,7 @@ function yarkleRoll() {
         if (yarkleCheck.score === 0) {
             msg.textContent = 'BUST! You lose all turn points!';
             speak('Bust! You lose all turn points!');
+            showPopupText('BUST!', 'bust');
             SoundFX.play('bust');
             yarkleState.turnScore = 0;
             setTimeout(() => yarkleEndTurn(true), 5000);
@@ -2135,7 +2249,13 @@ function yarkleRoll() {
             // Announce what they rolled
             const diceStr = unlockedValues.join(', ');
             msg.textContent = 'Select ROLL or BANK';
-            speak(`Rolled ${diceStr}. ${yarkleCheck.score} points available.`);
+            
+            // Calculate POTENTIAL total if they take all available points
+            // This is just for announcement context.
+            // The user asked for "Turn points added up".
+            
+            const potentialTotal = yarkleState.turnScore + yarkleCheck.score;
+            speak(`${yarkleCheck.score} points available. Potential Total: ${potentialTotal}.`);
 
             // Reset scan index to start at first die
             appState.scanIndex = 0;
@@ -2202,16 +2322,18 @@ function yarkleRoll() {
                 yarkleState.held[idx] = true;
             });
 
-            if (toHold.size > 0) {
-                updateYarklePreview(); // Updates points display
-            }
+            // Render updated dice state first (updates 3D models and DOM)
+            // Note: renderYarkleDice resets turn score display to base score, 
+            // so we must call updateYarklePreview AFTER it to show potential score.
+            renderYarkleDice();
+
+            // Force immediate UI update of Turn Score
+            updateYarklePreview(false); 
 
             // Highlight scoring dice (visual update)
             highlightScoringYarkleDice();
         }
-
-        renderYarkleDice();
-    });
+    }); // End throw3DDice callback
 }
 
 // Highlight dice that are scoring
@@ -2241,23 +2363,29 @@ function yarkleBank() {
 
     const msg = document.getElementById('yarkle-message');
     msg.textContent = `Banked ${yarkleState.turnScore}! ${pLabel} Total: ${currentTotal}`;
-    speak(`Banked ${yarkleState.turnScore}! Total is ${currentTotal}.`);
+    speak(`Banked ${yarkleState.turnScore}!`);
+    showPopupText(`+${yarkleState.turnScore}`, 'bank');
     SoundFX.play('bank');
+
+    // Update UI immediately to show new total
+    renderYarkleDice();
 
     if (currentTotal >= yarkleState.targetScore) {
         SoundFX.play('win');
         const winText = (pLabel === 'You') ? 'You Win' : `${pLabel} Wins`;
+        showPopupText(winText.toUpperCase(), 'win');
         speak(`${winText}!`);
         msg.textContent = `${winText.toUpperCase()}! Final score: ${currentTotal}`;
         setTimeout(() => {
             setAppState('MENU');
         }, 5000);
     } else {
-        setTimeout(() => yarkleEndTurn(false), 5000);
+        setTimeout(() => yarkleEndTurn(false), 3500);
     }
 }
 
 function yarkleEndTurn(wasYarkle) {
+    resetTableColor();
     yarkleState.dice = [0, 0, 0, 0, 0, 0];
     yarkleState.held = [false, false, false, false, false, false];
     yarkleState.locked = [false, false, false, false, false, false];
@@ -2271,14 +2399,14 @@ function yarkleEndTurn(wasYarkle) {
             yarkleState.isPlayerTurn = false;
             renderYarkleDice();
             document.getElementById('yarkle-message').textContent = "CPU is thinking...";
-            speak("CPU's turn");
+            speak(`CPU's turn. CPU has ${yarkleState.aiScore} points.`);
             setTimeout(yarkleAITurn, 1000);
         } else {
             yarkleState.isPlayerTurn = true;
             appState.scanIndex = 0;
             renderYarkleDice();
             document.getElementById('yarkle-message').textContent = 'Your turn - click ROLL';
-            speak('Your turn! Click roll.');
+            speak(`Your turn! You have ${yarkleState.totalScore} points.`);
             setTimeout(() => refreshScanFocus(false), 100);
         }
     } else {
@@ -2290,7 +2418,7 @@ function yarkleEndTurn(wasYarkle) {
 
         const pNum = yarkleState.currentPlayer + 1;
         document.getElementById('yarkle-message').textContent = `Player ${pNum}'s Turn`;
-        speak(`Player ${pNum}'s turn! Click roll.`);
+        speak(`Player ${pNum}'s turn! You have ${yarkleState.scores[yarkleState.currentPlayer]} points.`);
         setTimeout(() => refreshScanFocus(false), 100);
     }
 }
@@ -2298,6 +2426,7 @@ function yarkleEndTurn(wasYarkle) {
 // Yarkle AI logic
 function yarkleAITurn() {
     if (appState.state !== 'GAME') return; // STOP if menu opened
+    resetTableColor();
 
     const msg = document.getElementById('yarkle-message');
     msg.textContent = 'CPU rolling...';
@@ -2326,6 +2455,7 @@ function yarkleAITurn() {
         if (yarkleCheck.score === 0) {
             msg.textContent = 'CPU BUSTED!';
             speak('CPU busted!');
+            showPopupText('BUST!', 'bust');
             SoundFX.play('bust');
             yarkleState.turnScore = 0;
             setTimeout(() => yarkleEndTurn(true), 3000);
@@ -2375,20 +2505,26 @@ function yarkleAITurn() {
         if (shouldBank || yarkleState.aiScore + yarkleState.turnScore >= yarkleState.targetScore) {
             setTimeout(() => {
                 yarkleState.aiScore += yarkleState.turnScore;
+                
+                // Set Bank Color (Blue)
+                if (window.floorMat) window.floorMat.color.setHex(0x002e8a);
+                if (window.scene) window.scene.background = new THREE.Color(0x002e8a);
+
                 msg.textContent = `CPU banked ${yarkleState.turnScore}! CPU Total: ${yarkleState.aiScore}`;
-                speak(`CPU banked ${yarkleState.turnScore} points. CPU total: ${yarkleState.aiScore}`);
+                speak(`CPU banked ${yarkleState.turnScore} points.`);
+                showPopupText(`+${yarkleState.turnScore}`, 'bank');
                 SoundFX.play('bank');
-                renderYarkleDice();
 
                 if (yarkleState.aiScore >= yarkleState.targetScore) {
                     SoundFX.play('lose');
                     speak('CPU wins!');
+                    showPopupText('CPU WINS', 'win');
                     msg.textContent = `CPU WINS! Final score: You: ${yarkleState.totalScore} vs CPU: ${yarkleState.aiScore}`;
                     setTimeout(() => {
                         setAppState('MENU');
                     }, 5000);
                 } else {
-                    setTimeout(() => yarkleEndTurn(false), 6000);
+                    setTimeout(() => yarkleEndTurn(false), 4500);
                 }
             }, 1000);
         } else {
@@ -2447,17 +2583,17 @@ function initYarkle() {
         if (appState.players === 1) {
              if (yarkleState.isPlayerTurn) {
                 document.getElementById('yarkle-message').textContent = 'Your turn - click ROLL';
-                speak('Your turn! Click roll.');
+                speak('Your turn! You have 0 points.');
             } else {
                 document.getElementById('yarkle-message').textContent = "CPU's turn...";
-                speak("CPU's turn");
+                speak("CPU's turn. CPU has 0 points.");
                 setTimeout(yarkleAITurn, 1000);
             }
         } else {
             // Multiplayer Start
             const pNum = yarkleState.currentPlayer + 1;
             document.getElementById('yarkle-message').textContent = `Player ${pNum}'s Turn`;
-            speak(`Player ${pNum}'s turn! Click roll.`);
+            speak(`Player ${pNum}'s turn! You have 0 points.`);
             setTimeout(() => refreshScanFocus(false), 50);
         }
     }, 1500);
@@ -2622,6 +2758,8 @@ function fahtzeeRoll() {
     // Disable buttons during roll
     document.getElementById('fahtzeeRollBtn').disabled = true;
     document.getElementById('fahtzeeScoreBtn').disabled = true;
+    appState.isRolling = true;
+    refreshScanFocus();
 
     const msg = document.getElementById('fahtzee-message');
     msg.textContent = 'Rolling...';
@@ -2659,6 +2797,7 @@ function fahtzeeRoll() {
 
     // Roll 3D dice
     throw3DDice(5, heldData, (results) => {
+        appState.isRolling = false;
         for (let i = 0; i < 5; i++) {
             // Update only if NOT in heldData (meaning it rolled)
             // heldData contains indices that were KEPT.
@@ -2974,12 +3113,15 @@ function selectFahtzeeCategory(key) {
     if (key === 'fahtzee' && score === 50) {
         SoundFX.play('fahtzee');
         speak(`FAHTZEE! 50 points!`);
+        showPopupText('FAHTZEE!', 'win');
     } else if (score > 0) {
         SoundFX.play('score');
         speak(`Scored ${score} points in ${cat.name}`);
+        showPopupText(`+${score}`, 'score');
     } else {
         SoundFX.play('select');
         speak(`Scratched ${cat.name} for zero points`);
+        showPopupText('SCRATCHED', 'bust');
     }
 
     // Check for Fahtzee bonus
@@ -2993,6 +3135,7 @@ function selectFahtzeeCategory(key) {
             fahtzeeState.fahtzeeBonus += 100;
             SoundFX.play('fahtzee');
             speak('Fahtzee bonus! Plus 100 points!');
+            showPopupText('BONUS +100!', 'win');
         }
     }
 
@@ -3012,6 +3155,7 @@ function selectFahtzeeCategory(key) {
         total += 35;
         SoundFX.play('score');
         speak('Upper section bonus! Plus 35 points!');
+        showPopupText("BONUS +35", 'win');
     }
     total += fahtzeeState.fahtzeeBonus;
     fahtzeeState.totalScore = total;
@@ -3050,6 +3194,7 @@ function selectFahtzeeCategory(key) {
                  // Game Over
                 SoundFX.play('win');
                 speak('Game Over!');
+                showPopupText('GAME OVER', 'win');
 
                 // Find Winner
                 let maxScore = -1;
@@ -3067,10 +3212,12 @@ function selectFahtzeeCategory(key) {
                 return;
             }
 
+            resetTableColor();
             renderFahtzeeDice();
             const pNum = fahtzeeState.currentPlayer + 1;
+            const pScore = fahtzeeState.playerScores[fahtzeeState.currentPlayer];
             document.getElementById('fahtzee-message').textContent = `Player ${pNum}'s Turn`;
-            speak(`Player ${pNum}'s turn! Click roll.`);
+            speak(`Player ${pNum}'s turn! You have ${pScore} points.`);
             setTimeout(() => refreshScanFocus(false), 100);
         }, 3000);
 
@@ -3085,6 +3232,7 @@ function selectFahtzeeCategory(key) {
              // Game Over
             SoundFX.play('win');
             speak('Game Over!');
+            showPopupText('GAME OVER', 'win');
             let msg = "";
             if (fahtzeeState.totalScore > fahtzeeState.aiScore) msg = "You Win!";
             else if (fahtzeeState.aiScore > fahtzeeState.totalScore) msg = "CPU Wins!";
@@ -3099,9 +3247,10 @@ function selectFahtzeeCategory(key) {
 
         // After player scores, CPU takes turn
         fahtzeeState.isPlayerTurn = false;
+        resetTableColor();
         renderFahtzeeDice();
         document.getElementById('fahtzee-message').textContent = "CPU's turn...";
-        // speak("CPU's turn"); // Redundant if we just spoke the score
+        speak(`CPU's turn. CPU has ${fahtzeeState.aiScore} points.`);
             setTimeout(fahtzeeAITurn, 2000);
         }, 3000);
     }
@@ -3109,6 +3258,7 @@ function selectFahtzeeCategory(key) {
 
 // Fahtzee AI logic
 function fahtzeeAITurn() {
+    resetTableColor();
     const msg = document.getElementById('fahtzee-message');
     msg.textContent = 'CPU rolling...';
     SoundFX.play('roll');
@@ -3225,13 +3375,16 @@ function aiSelectCategory() {
 
     if (bestKey) {
         fahtzeeState.aiScorecard[bestKey] = bestScore;
-        msg.textContent = `CPU scored ${bestScore} in ${FAHTZEE_CATEGORIES[bestKey].name}`;
-        speak(`CPU scored ${bestScore} in ${FAHTZEE_CATEGORIES[bestKey].name}`);
 
         if (bestKey === 'fahtzee' && bestScore === 50) {
             SoundFX.play('fahtzee');
-        } else {
+            showPopupText('FAHTZEE!', 'win');
+        } else if (bestScore > 0) {
             SoundFX.play('score');
+            showPopupText(`+${bestScore}`, 'score');
+        } else {
+            showPopupText('SCRATCHED', 'bust');
+            SoundFX.play('select');
         }
 
         // Calculate AI total
@@ -3248,9 +3401,13 @@ function aiSelectCategory() {
         if (upperTotal >= 63 && !fahtzeeState.aiUpperBonus) {
             fahtzeeState.aiUpperBonus = true;
             total += 35;
+            showPopupText("BONUS +35", 'win');
         }
         total += fahtzeeState.aiFahtzeeBonus;
         fahtzeeState.aiScore = total;
+        
+        msg.textContent = `CPU scored ${bestScore} in ${FAHTZEE_CATEGORIES[bestKey].name}`;
+        speak(`CPU scored ${bestScore} in ${FAHTZEE_CATEGORIES[bestKey].name}.`);
     }
 
     renderFahtzeeDice();
@@ -3267,11 +3424,14 @@ function aiSelectCategory() {
             if (fahtzeeState.totalScore > fahtzeeState.aiScore) {
                 SoundFX.play('win');
                 speak(`Game over! You win! ${fahtzeeState.totalScore} to ${fahtzeeState.aiScore}`);
+                showPopupText('YOU WIN!', 'win');
             } else if (fahtzeeState.totalScore < fahtzeeState.aiScore) {
                 SoundFX.play('lose');
                 speak(`Game over! CPU wins. ${fahtzeeState.aiScore} to ${fahtzeeState.totalScore}`);
+                showPopupText('CPU WINS', 'win');
             } else {
                 speak(`Game over! It's a tie at ${fahtzeeState.totalScore} points!`);
+                showPopupText("TIE GAME", 'win');
             }
 
             msg.textContent = `GAME OVER! ${winner} You: ${fahtzeeState.totalScore} | CPU: ${fahtzeeState.aiScore}`;
@@ -3289,7 +3449,7 @@ function aiSelectCategory() {
             fahtzeeState.isPlayerTurn = true;
             renderFahtzeeDice();
             msg.textContent = `Round ${fahtzeeState.round} - Your turn! Click ROLL`;
-            speak(`Round ${fahtzeeState.round}. Your turn!`);
+            speak(`Round ${fahtzeeState.round}. Your turn! You have ${fahtzeeState.totalScore} points.`);
         }, 5000);
     }
 }
@@ -3361,16 +3521,16 @@ function initFahtzee() {
          if (appState.players === 1) {
             if (fahtzeeState.isPlayerTurn) {
                 document.getElementById('fahtzee-message').textContent = 'Click ROLL to start!';
-                speak('Your turn! Click roll.');
+                speak('Your turn! You have 0 points.');
             } else {
                 document.getElementById('fahtzee-message').textContent = "CPU's turn...";
-                speak("CPU's turn");
+                speak("CPU's turn. CPU has 0 points.");
                 setTimeout(fahtzeeAITurn, 1000);
             }
          } else {
              const pNum = fahtzeeState.currentPlayer + 1;
              document.getElementById('fahtzee-message').textContent = `Player ${pNum}'s Turn`;
-            speak(`Player ${pNum}'s turn! Click roll.`);
+            speak(`Player ${pNum}'s turn! You have 0 points.`);
             setTimeout(() => refreshScanFocus(false), 50);
          }
 
