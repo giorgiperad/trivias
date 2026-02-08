@@ -164,10 +164,10 @@ window.NarbeScanManager = (function() {
         return false;
       }
 
-// Valid release: Update the cooldown timer
-if (e.type === 'keyup' || e.type === 'mouseup') {
-  lastReleaseTime = now;
-}
+      // Valid release: Update the cooldown timer
+      if (e.type === 'keyup' || e.type === 'mouseup') {
+        lastReleaseTime = now;
+      }
     }
   }
 
