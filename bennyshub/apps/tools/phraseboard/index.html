@@ -1859,7 +1859,41 @@ function updateHeaderForCurrentView(){
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => { buildIndex(parseCSV(reader.result)); };
+      reader.onload = () => { 
+        const csvText = reader.result;
+        const parsedRows = parseCSV(csvText);
+        
+        // Extract board name from CSV data or use filename
+        let boardName = 'My Custom Board';
+        if (parsedRows.length > 0 && parsedRows[0].boardName) {
+          boardName = parsedRows[0].boardName;
+        } else {
+          // Use filename without extension as board name
+          boardName = file.name.replace(/\.csv$/i, '');
+        }
+        
+        // Save to localStorage
+        try {
+          const boardData = {
+            boardName: boardName,
+            csv: csvText
+          };
+          localStorage.setItem('narbe_phrase_builder', JSON.stringify(boardData));
+          
+          // Show success message and re-render main menu
+          el.statusFooter.textContent = `Board "${boardName}" saved! Navigate to it from the main menu.`;
+          speak(`Board ${cleanTextForTTS(boardName)} saved`);
+          
+          // Re-render main menu to show the new board
+          if (state.currentMenu === 'main') {
+            renderMainMenu();
+          }
+        } catch (err) {
+          console.error('Error saving board to localStorage:', err);
+          el.statusFooter.textContent = 'Error saving board. Try again.';
+          speak('Error saving board');
+        }
+      };
       reader.readAsText(file);
       e.target.value = '';
     });
