@@ -568,11 +568,62 @@
       returnActionExecuted: false,
       playerKind: 'unknown',
       isPlaylist: false,
-      videoModalActive: false
+      videoModalActive: false,
+      userScanPreference: 'row' // 'row' or 'cell'
     };
 
     // Expose state globally for header title updater
     window.state = state;
+
+    // ---- Settings Persistence ----
+    const STORAGE_KEY = 'phraseboard_settings';
+    
+    function saveSettings() {
+      try {
+        const settings = {
+          gridSize: state.gridSize,
+          userScanPreference: state.userScanPreference,
+          highlightColor: state.highlightColor,
+          theme: state.theme,
+          ttsOnScan: state.ttsOnScan
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        console.log('Phraseboard settings saved:', settings);
+      } catch (e) {
+        console.error('Failed to save phraseboard settings:', e);
+      }
+    }
+    
+    function loadSettings() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const settings = JSON.parse(saved);
+          console.log('Phraseboard settings loaded:', settings);
+          if (settings.gridSize) {
+            state.gridSize = settings.gridSize;
+          }
+          if (settings.userScanPreference) {
+            state.userScanPreference = settings.userScanPreference;
+            state.scanMode = settings.userScanPreference === 'cell' ? 'cell' : 'row';
+          }
+          if (settings.highlightColor) {
+            state.highlightColor = settings.highlightColor;
+          }
+          if (settings.theme) {
+            state.theme = settings.theme;
+          }
+          if (typeof settings.ttsOnScan === 'boolean') {
+            state.ttsOnScan = settings.ttsOnScan;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load phraseboard settings:', e);
+      }
+    }
+    
+    // Load settings immediately
+    loadSettings();
 
     const SCAN_SPEEDS = { slow: 2000, medium: 1200, fast: 600 };
 
@@ -749,6 +800,7 @@ function updateHeaderForCurrentView(){
       state.gridSize = { rows, cols };
       el.mainGrid.style.setProperty('--grid-rows', rows);
       el.mainGrid.style.setProperty('--grid-cols', cols);
+      saveSettings();
       renderCurrentMenu();
     }
 
@@ -1055,6 +1107,7 @@ function updateHeaderForCurrentView(){
         }, className: window.NarbeVoiceManager.getSettings().ttsEnabled ? 'active-green' : '' },
         { text: 'TTS on Scan', icon: '👆', action: () => { 
           state.ttsOnScan = !state.ttsOnScan; 
+          saveSettings();
           speak(state.ttsOnScan ? 'TTS on Scan enabled' : 'TTS on Scan disabled');
           renderTTSMenu(); 
         }, className: state.ttsOnScan ? 'active-green' : '' }
@@ -1153,6 +1206,17 @@ function updateHeaderForCurrentView(){
           renderScanMenu(); 
         }, className: autoScan ? 'active-green' : '' },
         
+        { text: 'Scan Mode: ' + (state.userScanPreference === 'cell' ? 'Cell' : 'Row'), icon: '📐', action: () => {
+          state.userScanPreference = state.userScanPreference === 'cell' ? 'row' : 'cell';
+          stopScanning();
+          state.scanMode = state.userScanPreference === 'cell' ? 'cell' : 'row';
+          state.currentRow = -1;
+          state.scanIndex = -1;
+          saveSettings();
+          speak(`Scan mode set to ${state.userScanPreference}`);
+          renderScanMenu();
+        }, className: 'muted-blue-btn' },
+        
         { text: `Speed: ${(currentSpeedIndex + 1)}s`, icon: '⏱️', action: () => {
              let nextIndex = (currentSpeedIndex + 1) % 4;
              if (window.NarbeScanManager) {
@@ -1222,6 +1286,7 @@ function updateHeaderForCurrentView(){
           speak(`${colorName} highlight selected`);
           document.documentElement.style.setProperty('--rowHighlight', color);
           document.documentElement.style.setProperty('--columnHighlight', color);
+          saveSettings();
           renderHighlightMenu();
         },
         className: state.highlightColor === color ? 'active-green' : '',
@@ -1340,6 +1405,8 @@ function updateHeaderForCurrentView(){
       for (let i = startIdx; i < endIdx; i++) {
         const item = cat.items[i];
         const btn = createButton(item.display || item.speak || 'Speak', '', () => onTileClick(item));
+        // Store the speak text for scan selection to use
+        btn.dataset.speakText = item.speak || item.display || '';
         if (item.image) {
           const img = document.createElement('img');
           img.src = item.image;
@@ -1404,6 +1471,7 @@ function updateHeaderForCurrentView(){
     }
 
     function highlightCurrentRow() {
+      if (state.userScanPreference === 'cell') return;
       clearScanHighlight();
       // Only highlight if currentRow is valid (not -1)
       if (state.currentRow >= 0 && state.scannableRows[state.currentRow]) {
@@ -1444,6 +1512,25 @@ function updateHeaderForCurrentView(){
 
     function scanForward() {
       if (!state.scannableRows || state.scannableRows.length === 0) return;
+
+      if (state.userScanPreference === 'cell') {
+        if (state.currentRow === -1) {
+          state.currentRow = 0;
+          state.scanIndex = 0;
+        } else {
+          state.scanIndex++;
+          if (state.scanIndex >= state.scannableRows[state.currentRow].length) {
+            state.scanIndex = 0;
+            state.currentRow++;
+            if (state.currentRow >= state.scannableRows.length) {
+              state.currentRow = 0;
+            }
+          }
+        }
+        highlightScanIndex();
+        return;
+      }
+
       if (state.scanMode === 'row') { 
         // If currentRow is -1, start at 0, otherwise cycle normally
         if (state.currentRow === -1) {
@@ -1469,6 +1556,23 @@ function updateHeaderForCurrentView(){
 
     function scanBackward() {
       if (!state.scannableRows || state.scannableRows.length === 0) return;
+
+      if (state.userScanPreference === 'cell') {
+        if (state.currentRow === -1) {
+          state.currentRow = state.scannableRows.length - 1;
+          state.scanIndex = state.scannableRows[state.currentRow].length - 1;
+        } else {
+          state.scanIndex--;
+          if (state.scanIndex < 0) {
+            state.currentRow--;
+            if (state.currentRow < 0) state.currentRow = state.scannableRows.length - 1;
+            state.scanIndex = state.scannableRows[state.currentRow].length - 1;
+          }
+        }
+        highlightScanIndex();
+        return;
+      }
+
       if (state.scanMode === 'row') { 
         // If currentRow is -1, start at last row, otherwise cycle normally
         if (state.currentRow === -1) {
@@ -1524,6 +1628,48 @@ function updateHeaderForCurrentView(){
         scanForward();
         return;
       }
+
+      if (state.userScanPreference === 'cell') {
+        if (state.currentRow >= 0 && state.scanIndex >= 0 && 
+            state.scannableRows[state.currentRow] && 
+            state.scannableRows[state.currentRow][state.scanIndex]) {
+              
+            const element = state.scannableRows[state.currentRow][state.scanIndex];
+            let selectionText = '';
+            
+             if (!state.videoModalActive) {
+                if (element === el.sentenceDisplay && state.sentenceMode) {
+                  const displayText = el.sentenceDisplay.textContent.trim();
+                  if (displayText) { if (window.NarbeVoiceManager.getSettings().ttsEnabled) speak(displayText); }
+                  else { if (window.NarbeVoiceManager.getSettings().ttsEnabled) speak('sentence is empty'); }
+                } else if (element === el.deleteWordBtn && state.sentenceMode) {
+                  selectionText = 'Deleting';
+                  deleteLastWord();
+                } else if (element === el.clearSentenceBtn && state.sentenceMode) {
+                  selectionText = 'Clearing all';
+                  clearSentence();
+                } else if (element !== el.sentenceDisplay && element !== el.deleteWordBtn && element !== el.clearSentenceBtn) {
+                  // For phrase buttons (with data-speakText), onTileClick handles TTS, so don't double-speak
+                  // For other buttons (settings, back, next, etc.), we need to speak
+                  if (!element.dataset.speakText) {
+                    selectionText = cleanTextForTTS(element.textContent);
+                  }
+                  element.click();
+                }
+             } else {
+                selectionText = cleanTextForTTS(element.textContent);
+                element.click();
+             }
+             
+             if (selectionText && window.NarbeVoiceManager.getSettings().ttsEnabled && element !== el.sentenceDisplay) { setTimeout(() => speak(selectionText), 100); }
+             
+             // Keep highlight on the current selection in cell mode
+             // state.currentRow = -1;
+             // state.scanIndex = -1;
+             // clearScanHighlight();
+             return;
+        }
+      }
       
       if (state.scanMode === 'row') {
         state.scanMode = 'column';
@@ -1548,7 +1694,11 @@ function updateHeaderForCurrentView(){
               selectionText = 'Clearing all';
               clearSentence();
             } else if (element !== el.sentenceDisplay && element !== el.deleteWordBtn && element !== el.clearSentenceBtn) {
-              selectionText = cleanTextForTTS(element.textContent);
+              // For phrase buttons (with data-speakText), onTileClick handles TTS, so don't double-speak
+              // For other buttons (settings, back, next, etc.), we need to speak
+              if (!element.dataset.speakText) {
+                selectionText = cleanTextForTTS(element.textContent);
+              }
               element.click();
             }
           } else {
@@ -1736,10 +1886,13 @@ function updateHeaderForCurrentView(){
         syncScanSettings();
     }
     
+    // Apply loaded settings to CSS/DOM
     document.documentElement.style.setProperty('--rowHighlight', state.highlightColor);
     document.documentElement.style.setProperty('--columnHighlight', state.highlightColor);
-    setTheme(state.theme);
-    scanForBoards().then(() => {
+    el.mainGrid.style.setProperty('--grid-rows', state.gridSize.rows);
+    el.mainGrid.style.setProperty('--grid-cols', state.gridSize.cols);
+    setTheme(state.theme, true); // skipSave=true since we're loading from saved settings
+    scanForBoards().then(async () => {
       // Load saved board or default
       const saved = getLocalSavedBoard();
       // Load settings from ScanManager
@@ -1758,11 +1911,34 @@ function updateHeaderForCurrentView(){
         }, 500);
       }
 
+      // Check for board URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const boardParam = urlParams.get('board');
+
+      if (boardParam) {
+        // Find the board in availableBoards (check filename or name)
+        const targetBoard = state.availableBoards.find(b => 
+          b.filename.toLowerCase() === boardParam.toLowerCase() || 
+          b.name.toLowerCase() === boardParam.toLowerCase()
+        );
+        
+        if (targetBoard) {
+           const success = await loadBoard(targetBoard.path);
+           if (success) {
+               el.statusFooter.textContent = `Loaded board: ${targetBoard.name}`;
+               updateScannable();
+               state.currentRow = 0; state.scanIndex = 0;
+               setTimeout(() => { updateScannable(); }, 100);
+               return; // Skip rendering main menu
+           }
+        }
+      }
+
+      // Always start at main menu instead of auto-loading saved board
+      renderMainMenu();
+      
       if (saved && saved.csv) {
-        buildIndex(parseCSV(saved.csv));
-        el.statusFooter.textContent = `Loaded your board: ${saved.name}`;
-      } else {
-        renderMainMenu();
+        el.statusFooter.textContent = `You have a saved board: ${saved.name}`;
       }
       
       updateScannable();
@@ -1771,10 +1947,11 @@ function updateHeaderForCurrentView(){
     });
 
     // Theme
-    function setTheme(themeName) {
+    function setTheme(themeName, skipSave = false) {
       state.theme = themeName;
       if (themeName === 'light') document.body.removeAttribute('data-theme');
       else document.body.setAttribute('data-theme', themeName);
+      if (!skipSave) saveSettings();
     }
 
     // Tile Actions
