@@ -1067,31 +1067,36 @@ function triggerFileLoad() {
         input.id = 'game-file-input';
         input.accept = '.json';
         input.style.display = 'none';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                        try {
-                            const json = JSON.parse(ev.target.result);
-                            // New Behavior: Save to Library, Validate UI
-                            if (json.categories || (json.meta && json.categories)) {
-                                saveToLibrary(json, file.name);
-                                loadGamesList(); // Refresh UI
-                                alert("Game added! Please select it from the menu.");
-                            } else {
-                                alert("Invalid Game File. Missing categories.");
-                            }
-                        } catch (ex) {
-                            alert("Invalid JSON file");
-                        }
-                    };
-                    reader.readAsText(file);
+        document.body.appendChild(input);
+    }
+    
+    // Always re-assign the onchange handler to ensure it fires
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const json = JSON.parse(ev.target.result);
+                    // New Behavior: Save to Library, Validate UI
+                    if (json.categories || (json.meta && json.categories)) {
+                        saveToLibrary(json, file.name);
+                        await loadGamesList(); // Refresh UI - now properly awaited
+                        speak("Game added successfully!");
+                    } else {
+                        alert("Invalid Game File. Missing categories.");
+                    }
+                } catch (ex) {
+                    alert("Invalid JSON file");
                 }
             };
-            document.body.appendChild(input);
+            reader.readAsText(file);
         }
-        input.click();
+        // Reset the input value so the same file can be selected again
+        input.value = '';
+    };
+    
+    input.click();
 }
 
 function saveCustomGame(gameData) {
