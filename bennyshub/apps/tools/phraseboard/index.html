@@ -990,7 +990,7 @@ function updateHeaderForCurrentView(){
       updateScannable();
     }
 
-    function renderSettingsMenu() {
+    function renderSettingsMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'settings';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1002,7 +1002,7 @@ function updateHeaderForCurrentView(){
         { text: 'Scan Settings', icon: '🎯', action: () => navigateTo('scan') },
         { text: 'Highlight Colors', icon: '🎨', action: () => navigateTo('highlight') },
         { text: 'Theme', icon: '🌈', action: () => navigateTo('theme') },
-        { text: 'Toggle Sentence', icon: '💬', action: toggleSentenceMode, className: state.sentenceMode ? 'active-green' : '' }
+        { text: 'Toggle Sentence', icon: '💬', action: () => { toggleSentenceMode(); renderSettingsMenu(true); }, className: state.sentenceMode ? 'active-green' : '' }
       ];
       
       const availableSlots = totalSlots - 1; // Reserve one slot for back/next button
@@ -1039,10 +1039,10 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
-    function renderGridSizeMenu() {
+    function renderGridSizeMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'gridsize';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1090,10 +1090,10 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
-    function renderTTSMenu() {
+    function renderTTSMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'tts';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1103,13 +1103,13 @@ function updateHeaderForCurrentView(){
         { text: 'TTS', icon: '🔊', action: () => { 
           const newState = window.NarbeVoiceManager.toggleTTS(); 
           speak(newState ? 'TTS enabled' : 'TTS disabled');
-          renderTTSMenu(); 
+          renderTTSMenu(true); 
         }, className: window.NarbeVoiceManager.getSettings().ttsEnabled ? 'active-green' : '' },
         { text: 'TTS on Scan', icon: '👆', action: () => { 
           state.ttsOnScan = !state.ttsOnScan; 
           saveSettings();
           speak(state.ttsOnScan ? 'TTS on Scan enabled' : 'TTS on Scan disabled');
-          renderTTSMenu(); 
+          renderTTSMenu(true); 
         }, className: state.ttsOnScan ? 'active-green' : '' }
       ];
       
@@ -1127,7 +1127,7 @@ function updateHeaderForCurrentView(){
             const newVoice = window.NarbeVoiceManager.getCurrentVoice();
             const newVoiceName = window.NarbeVoiceManager.getVoiceDisplayName(newVoice);
             speak(`Voice changed to ${newVoiceName}`);
-            renderTTSMenu();
+            renderTTSMenu(true);
           },
           className: 'voice-toggle'
         });
@@ -1167,10 +1167,10 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
-    function renderScanMenu() {
+    function renderScanMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'scan';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1203,7 +1203,7 @@ function updateHeaderForCurrentView(){
           // Update local state immediately for responsiveness
           state.autoScan = newVal;
           if (state.autoScan) startAutoScan(); else stopScanning(); 
-          renderScanMenu(); 
+          renderScanMenu(true); 
         }, className: autoScan ? 'active-green' : '' },
         
         { text: 'Scan Mode: ' + (state.userScanPreference === 'cell' ? 'Cell' : 'Row'), icon: '📐', action: () => {
@@ -1214,7 +1214,7 @@ function updateHeaderForCurrentView(){
           state.scanIndex = -1;
           saveSettings();
           speak(`Scan mode set to ${state.userScanPreference}`);
-          renderScanMenu();
+          renderScanMenu(true);
         }, className: 'muted-blue-btn' },
         
         { text: `Speed: ${(currentSpeedIndex + 1)}s`, icon: '⏱️', action: () => {
@@ -1230,7 +1230,7 @@ function updateHeaderForCurrentView(){
              
              speak(`${nextIndex + 1} second speed`);
              if (state.scanning || state.autoScan) { stopScanning(); if (state.autoScan) startAutoScan(); }
-             renderScanMenu();
+             renderScanMenu(true);
         }}
       ];
       
@@ -1268,10 +1268,10 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
-    function renderHighlightMenu() {
+    function renderHighlightMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'highlight';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1287,7 +1287,7 @@ function updateHeaderForCurrentView(){
           document.documentElement.style.setProperty('--rowHighlight', color);
           document.documentElement.style.setProperty('--columnHighlight', color);
           saveSettings();
-          renderHighlightMenu();
+          renderHighlightMenu(true);
         },
         className: state.highlightColor === color ? 'active-green' : '',
         iconColor: color
@@ -1330,10 +1330,10 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
-    function renderThemeMenu() {
+    function renderThemeMenu(preservePosition = false) {
       clearGrid();
       state.currentMenu = 'theme';
       // Don't subtract sentence row space - it's now in its own dedicated row
@@ -1345,7 +1345,7 @@ function updateHeaderForCurrentView(){
         action: () => { 
           setTheme(themeKey); 
           speak(`${themeName} theme selected`);
-          renderThemeMenu(); 
+          renderThemeMenu(true); 
         },
         className: state.theme === themeKey ? 'active-green' : ''
       }));
@@ -1384,7 +1384,7 @@ function updateHeaderForCurrentView(){
         el.mainGrid.appendChild(nextBtn);
       }
       
-      updateScannable();
+      updateScannable(preservePosition);
     }
 
     function renderCategory() {
@@ -1435,7 +1435,12 @@ function updateHeaderForCurrentView(){
       return cs.display !== 'none' && cs.visibility !== 'hidden' && el.offsetParent !== null;
     }
 
-    function updateScannable() {
+    function updateScannable(preservePosition = false) {
+      // Save current position for cell mode preservation
+      const savedRow = state.currentRow;
+      const savedIndex = state.scanIndex;
+      const isCellMode = state.userScanPreference === 'cell';
+      
       // If video modal is open, only scan its visible control buttons
       if (state.videoModalActive) {
         const controls = Array.from(document.querySelectorAll('#iframeControls .grid-button')).filter(isVisible);
@@ -1458,6 +1463,19 @@ function updateHeaderForCurrentView(){
         if (row.length > 0) rows.push(row);
       }
       state.scannableRows = rows;
+      
+      // In cell mode with preservePosition, keep the scan position if valid
+      if (preservePosition && isCellMode && savedRow >= 0 && savedIndex >= 0) {
+        // Make sure the saved position is still valid in the new grid
+        if (savedRow < rows.length && savedIndex < rows[savedRow].length) {
+          state.currentRow = savedRow;
+          state.scanIndex = savedIndex;
+          // Re-apply highlight to the element at this position
+          highlightScanIndex();
+          return;
+        }
+      }
+      
       // Start at -1 for no highlighting until spacebar is pressed
       state.currentRow = -1;
       state.scanIndex = -1;
