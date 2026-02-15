@@ -79,6 +79,11 @@
             <button class="btn btn-primary" style="width: 100%;" onclick="createCategory()">Add Category</button>
         </div>
         <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+            <div id="folder-status-sidebar" style="font-size: 11px; margin-bottom: 8px; padding: 5px; background: #fff3e0; border-radius: 3px; display: flex; align-items: center; gap: 5px;">
+                <span>📁</span>
+                <span id="folder-status-text">No folder linked</span>
+                <button class="btn" style="margin-left: auto; padding: 2px 6px; font-size: 10px;" onclick="openAssetManager()" title="Manage asset folder">⚙️</button>
+            </div>
             <button class="btn" style="width: 100%;" onclick="openAssetManager()">Manage Assets</button>
             <!-- <button class="btn" style="width: 100%; margin-top: 5px;" onclick="refreshAssets()">Refresh Assets</button> -->
             <button class="btn" style="width: 100%; margin-top: 5px; background-color: #ff9800; color: white;" onclick="importManifestFile()">Import JSON</button>
@@ -140,17 +145,19 @@
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('asset-modal')">&times;</span>
             <h2>Asset Manager</h2>
-            <div class="row">
-                <label for="asset-upload" class="btn btn-primary">Select Folder to Import (Server)</label>
-                <input type="file" id="asset-upload" webkitdirectory directory multiple onchange="uploadAssets()" style="display: none;">
-                <span id="upload-status"></span>
+            
+            <!-- Persistent Folder Section -->
+            <div id="persistent-folder-section" style="margin-bottom: 15px; padding: 10px; background: #e8f5e9; border: 1px solid #4caf50; border-radius: 5px;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <strong>📁 Asset Folder:</strong>
+                    <span id="linked-folder-name" style="color: #2e7d32;">Not linked</span>
+                    <button class="btn btn-primary" onclick="linkAssetFolder()" id="btn-link-folder">Link Folder</button>
+                    <button class="btn" onclick="refreshFromPersistentFolder()" id="btn-refresh-folder" style="display: none;">🔄 Refresh</button>
+                    <button class="btn btn-danger" onclick="unlinkAssetFolder()" id="btn-unlink-folder" style="display: none; font-size: 0.8em;">Unlink</button>
+                </div>
+                <p style="font-size: 11px; margin: 5px 0 0 0; color: #555;">Link a folder for persistent access - assets will auto-load when you open the editor.</p>
             </div>
-            <div id="manual-scan-container" style="display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd;">
-                <strong>Standalone Mode:</strong> 
-                <label for="manual-scan" class="btn btn-primary">Load Assets Folder</label>
-                <input type="file" id="manual-scan" webkitdirectory directory multiple onchange="handleManualScan(this)" style="display: none;">
-                <p style="font-size: 12px; margin: 5px 0;">Select your 'assets' folder to load images/sounds into the editor.</p>
-            </div>
+            
             <div style="margin-top: 10px;">
                 <select id="asset-sort" onchange="filterAssets()" style="padding: 5px; margin-right: 10px;">
                     <option value="name-asc">Name (A-Z)</option>

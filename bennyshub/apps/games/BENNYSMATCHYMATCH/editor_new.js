@@ -25,6 +25,10 @@ let assetBlobs = {}; // Cache for local blobs
 let mediaRecorder = null;
 let recordedChunks = [];
 
+// Persistent Folder Handle (File System Access API)
+let persistentFolderHandle = null;
+const FOLDER_HANDLE_STORE = 'folderHandles';
+
 // Photo Context
 let photoCanvas = null;
 let photoCtx = null;
@@ -41,8 +45,14 @@ async function init() {
     // Check for Auto-Save
     checkForAutoSave();
     
+    // Try to restore persistent folder handle
+    await restorePersistentFolderHandle();
+    
     await loadAssetPool();
     renderCategories();
+    
+    // Update folder UI (after DOM is ready)
+    updateFolderUI();
 
     // Restore Editor State (current category)
     try {
@@ -1649,6 +1659,21 @@ function importManifestFile() {
                     alert("Manifest imported successfully!");
                     localStorage.setItem('matchy_manifest', JSON.stringify(manifest));
                     localStorage.setItem('matchy_last_pack', currentPackFilename);
+                    
+                    // Offer to link asset folder for persistent access
+                    if (window.showDirectoryPicker) {
+                        setTimeout(async () => {
+                            if (confirm("Would you like to link an asset folder?\n\nThis will give the editor persistent access to your images and sounds, so you won't need to re-import them each time.")) {
+                                const handle = await requestFolderAccess();
+                                if (handle) {
+                                    await loadAssetsFromFolderHandle(handle, false);
+                                    autoMatchSounds();
+                                    if (currentCategory) renderCards();
+                                    alert("Asset folder linked successfully! The editor will remember this folder.");
+                                }
+                            }
+                        }, 100);
+                    }
 
                 } else {
                     alert("Invalid JSON format: Could not find 'categories' object or valid category map.");
@@ -1826,6 +1851,7 @@ function openAssetManager() {
     document.getElementById('asset-modal').style.display = 'flex';
     assetManagerSelection.clear(); // Clear selection on open
     updateAssetManagerUI();
+    updateFolderUI(); // Update persistent folder status
     if (document.getElementById('asset-manager-search')) {
         document.getElementById('asset-manager-search').value = '';
     }
@@ -3952,6 +3978,10 @@ async function resetLocalStorage() {
         // Also clear IndexedDB
         await clearAssetsDB();
         
+        // Clear persistent folder handle
+        await clearFolderHandleFromDB();
+        persistentFolderHandle = null;
+        
         alert("Local storage cleared. Reloading...");
         window.location.reload();
     }
@@ -4261,7 +4291,7 @@ async function selectSymbol(url, name) {
 
 // --- IndexedDB for Asset Caching ---
 const DB_NAME = 'MatchyAssetsDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped for folder handle store
 const STORE_NAME = 'assets';
 
 function openDB() {
@@ -4274,8 +4304,226 @@ function openDB() {
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME, { keyPath: 'name' });
             }
+            // Add store for persistent folder handles
+            if (!db.objectStoreNames.contains(FOLDER_HANDLE_STORE)) {
+                db.createObjectStore(FOLDER_HANDLE_STORE, { keyPath: 'id' });
+            }
         };
     });
+}
+
+// --- Persistent Folder Handle Functions ---
+async function saveFolderHandleToDB(handle) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction(FOLDER_HANDLE_STORE, 'readwrite');
+        const store = tx.objectStore(FOLDER_HANDLE_STORE);
+        store.put({ id: 'assetFolder', handle: handle });
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => {
+                console.log("Folder handle saved to IndexedDB");
+                resolve(true);
+            };
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) {
+        console.error("Failed to save folder handle:", e);
+        return false;
+    }
+}
+
+async function loadFolderHandleFromDB() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction(FOLDER_HANDLE_STORE, 'readonly');
+        const store = tx.objectStore(FOLDER_HANDLE_STORE);
+        const request = store.get('assetFolder');
+        
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => {
+                if (request.result && request.result.handle) {
+                    resolve(request.result.handle);
+                } else {
+                    resolve(null);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    } catch (e) {
+        console.error("Failed to load folder handle:", e);
+        return null;
+    }
+}
+
+async function clearFolderHandleFromDB() {
+    try {
+        const db = await openDB();
+        const tx = db.transaction(FOLDER_HANDLE_STORE, 'readwrite');
+        const store = tx.objectStore(FOLDER_HANDLE_STORE);
+        store.delete('assetFolder');
+        return new Promise((resolve) => {
+            tx.oncomplete = () => resolve();
+        });
+    } catch (e) {
+        console.error("Failed to clear folder handle:", e);
+    }
+}
+
+async function restorePersistentFolderHandle() {
+    try {
+        const handle = await loadFolderHandleFromDB();
+        if (handle) {
+            // Verify permission is still granted
+            const permission = await handle.queryPermission({ mode: 'read' });
+            if (permission === 'granted') {
+                persistentFolderHandle = handle;
+                console.log("Restored persistent folder handle with existing permission");
+                await loadAssetsFromFolderHandle(handle, true); // Silent load
+                return true;
+            } else {
+                // Permission expired, we'll need to re-request
+                console.log("Folder handle found but permission expired. Will prompt on next use.");
+                // Store handle anyway - can request permission later
+                persistentFolderHandle = handle;
+            }
+        }
+    } catch (e) {
+        console.warn("Could not restore persistent folder handle:", e);
+    }
+    return false;
+}
+
+async function requestFolderAccess() {
+    if (!window.showDirectoryPicker) {
+        alert("Your browser doesn't support persistent folder access. Assets will need to be re-imported each session.");
+        return null;
+    }
+    
+    try {
+        const handle = await window.showDirectoryPicker({
+            id: 'matchy-assets',
+            mode: 'read',
+            startIn: 'documents'
+        });
+        
+        persistentFolderHandle = handle;
+        await saveFolderHandleToDB(handle);
+        console.log("Folder access granted and saved");
+        return handle;
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error("Error requesting folder access:", e);
+        }
+        return null;
+    }
+}
+
+async function loadAssetsFromFolderHandle(handle, silent = false) {
+    if (!handle) {
+        console.warn("No folder handle provided");
+        return false;
+    }
+    
+    try {
+        // Check/request permission
+        let permission = await handle.queryPermission({ mode: 'read' });
+        if (permission !== 'granted') {
+            permission = await handle.requestPermission({ mode: 'read' });
+            if (permission !== 'granted') {
+                if (!silent) alert("Permission to access the folder was denied.");
+                return false;
+            }
+        }
+        
+        const files = [];
+        const filePaths = [];
+        
+        // Recursively read files from directory
+        async function readDirectory(dirHandle, path = '') {
+            for await (const entry of dirHandle.values()) {
+                const entryPath = path ? `${path}/${entry.name}` : entry.name;
+                if (entry.kind === 'file') {
+                    const ext = entry.name.split('.').pop().toLowerCase();
+                    if (['png','jpg','jpeg','gif','webp','mp3','wav','ogg'].includes(ext)) {
+                        const file = await entry.getFile();
+                        files.push({ file, path: entryPath });
+                        filePaths.push(entryPath);
+                    }
+                } else if (entry.kind === 'directory') {
+                    await readDirectory(entry, entryPath);
+                }
+            }
+        }
+        
+        await readDirectory(handle);
+        
+        if (files.length === 0) {
+            if (!silent) alert("No supported image or audio files found in the selected folder.");
+            return false;
+        }
+        
+        // Clear old blobs
+        assetBlobs = {};
+        
+        // Create blobs and update pool
+        files.forEach(({ file, path }) => {
+            const filename = file.name.toLowerCase();
+            assetBlobs[filename] = URL.createObjectURL(file);
+        });
+        
+        // Also cache to IndexedDB for offline use
+        const fileObjs = files.map(f => {
+            const fileObj = f.file;
+            // Add webkitRelativePath-like property
+            Object.defineProperty(fileObj, 'webkitRelativePath', {
+                value: f.path,
+                writable: false
+            });
+            return fileObj;
+        });
+        await saveAssetsToDB(fileObjs);
+        
+        processAssetList(filePaths);
+        
+        // Auto-populate Unassigned category with new images
+        const addedCount = syncAssets(silent);
+        
+        // Save changes to browser storage
+        if (addedCount > 0) {
+            saveToBrowser();
+        }
+        
+        if (!silent) {
+            console.log(`Loaded ${files.length} assets from persistent folder`);
+            if (addedCount > 0) {
+                console.log(`Added ${addedCount} new cards to Unassigned`);
+            }
+        }
+        
+        return true;
+    } catch (e) {
+        console.error("Error loading assets from folder handle:", e);
+        if (!silent) alert("Error loading assets: " + e.message);
+        return false;
+    }
+}
+
+async function refreshFromPersistentFolder() {
+    if (!persistentFolderHandle) {
+        // No persistent folder, prompt to select one
+        const handle = await requestFolderAccess();
+        if (!handle) return;
+        await loadAssetsFromFolderHandle(handle, false);
+    } else {
+        await loadAssetsFromFolderHandle(persistentFolderHandle, false);
+    }
+    
+    // Refresh UI
+    autoMatchSounds();
+    filterAssets('all');
+    if (currentCategory) {
+        renderCards();
+    }
 }
 
 async function saveAssetsToDB(files) {
@@ -4466,5 +4714,81 @@ function updateGameRegistry() {
 function triggerNewProject() {
     clearBrowserData();
 }
+
+// --- Persistent Folder UI Functions ---
+async function linkAssetFolder() {
+    const handle = await requestFolderAccess();
+    if (handle) {
+        await loadAssetsFromFolderHandle(handle, false);
+        updateFolderUI();
+        autoMatchSounds();
+        filterAssets('all');
+        if (currentCategory) renderCards();
+    }
+}
+
+async function unlinkAssetFolder() {
+    if (confirm("Unlink the asset folder? You will need to re-import assets manually.")) {
+        persistentFolderHandle = null;
+        await clearFolderHandleFromDB();
+        updateFolderUI();
+    }
+}
+
+function updateFolderUI() {
+    // Update Asset Manager modal elements
+    const nameSpan = document.getElementById('linked-folder-name');
+    const linkBtn = document.getElementById('btn-link-folder');
+    const refreshBtn = document.getElementById('btn-refresh-folder');
+    const unlinkBtn = document.getElementById('btn-unlink-folder');
+    const section = document.getElementById('persistent-folder-section');
+    
+    // Update sidebar status
+    const sidebarStatus = document.getElementById('folder-status-sidebar');
+    const sidebarText = document.getElementById('folder-status-text');
+    
+    if (persistentFolderHandle) {
+        const folderName = persistentFolderHandle.name || 'Linked';
+        
+        // Asset Manager modal
+        if (nameSpan) nameSpan.textContent = folderName;
+        if (nameSpan) nameSpan.style.color = '#2e7d32';
+        if (linkBtn) linkBtn.style.display = 'none';
+        if (refreshBtn) refreshBtn.style.display = 'inline-block';
+        if (unlinkBtn) unlinkBtn.style.display = 'inline-block';
+        if (section) {
+            section.style.background = '#e8f5e9';
+            section.style.borderColor = '#4caf50';
+        }
+        
+        // Sidebar
+        if (sidebarText) sidebarText.textContent = `📂 ${folderName}`;
+        if (sidebarStatus) {
+            sidebarStatus.style.background = '#e8f5e9';
+            sidebarStatus.style.color = '#2e7d32';
+        }
+    } else {
+        // Asset Manager modal
+        if (nameSpan) nameSpan.textContent = 'Not linked';
+        if (nameSpan) nameSpan.style.color = '#666';
+        if (linkBtn) linkBtn.style.display = 'inline-block';
+        if (refreshBtn) refreshBtn.style.display = 'none';
+        if (unlinkBtn) unlinkBtn.style.display = 'none';
+        if (section) {
+            section.style.background = '#fff3e0';
+            section.style.borderColor = '#ff9800';
+        }
+        
+        // Sidebar
+        if (sidebarText) sidebarText.textContent = 'No folder linked';
+        if (sidebarStatus) {
+            sidebarStatus.style.background = '#fff3e0';
+            sidebarStatus.style.color = '#666';
+        }
+    }
+}
+
+// Update the folder UI when asset manager is opened
+const originalOpenAssetManager = typeof openAssetManager === 'function' ? openAssetManager : null;
 
 init();
