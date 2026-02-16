@@ -115,7 +115,11 @@ function speak(text) {
         const utterance = new SpeechSynthesisUtterance(text);
         
         const voices = window.speechSynthesis.getVoices();
-        if (voices.length > 0) {
+        // Try to find Georgian voice
+        const georgianVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ka'));
+        if (georgianVoice) {
+            utterance.voice = georgianVoice;
+        } else if (voices.length > 0) {
             utterance.voice = voices[state.settings.voiceIndex % voices.length];
         }
 

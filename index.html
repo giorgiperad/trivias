@@ -171,53 +171,6 @@
       </div>
     </div>
   </div>
-  <script>
-    const canvas = document.getElementById('particles');
-    const ctx = canvas.getContext('2d');
-    function resizeParticles() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    resizeParticles();
-    window.addEventListener('resize', resizeParticles);
-    const particles = [];
-    const particleCount = 80;
-    class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 2.5 + 0.5;
-        this.speedX = Math.random() * 0.8 - 0.4;
-        this.speedY = Math.random() * 0.8 - 0.4;
-        this.opacity = Math.random() * 0.5 + 0.2;
-      }
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-      }
-      draw() {
-        ctx.globalAlpha = this.opacity;
-        ctx.fillStyle = '#a78bfa';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    for(let i = 0; i < particleCount; i++) {
-      particles.push(new Particle());
-    }
-    function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => {
-        p.update();
-        p.draw();
-      });
-      requestAnimationFrame(animate);
-    }
-    animate();
-  </script>
 </body>
 </html>
       max-width: 1100px;
@@ -1166,81 +1119,53 @@
     animate();
   </script>
 
-</div>
-        </details>
-        <div class="copyright">© <span id="year"></span> NARBE House · All rights reserved</div>
-      </footer>
-    </main>
   </div>
-
-    <div id="iframe-app-container" class="iframe-container">
-        <div class="iframe-header">
-            <button class="iframe-back" onclick="closeApp(true)">← Exit to Benny's Hub</button>
-            <div id="iframe-title" class="iframe-title">App</div>
-        </div>
-        <div class="iframe-wrapper">
-            <iframe id="app-iframe" src="about:blank" title="App Content" width="100%" height="100%" frameborder="0" allow="autoplay; fullscreen"></iframe>
-        </div>
-    </div>
-
-  <noscript>
-    <div style="padding:20px; color:#fff; text-align:center; background:rgba(255,92,0,0.1); border-bottom: 2px solid var(--narbe-orange);">
-      This site works best with JavaScript enabled. Links still function without scripts.
-    </div>
-  </noscript>
-
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // App Launcher Logic
-    function openApp(path, title) {
-        const container = document.getElementById('iframe-app-container');
-        const iframe = document.getElementById('app-iframe');
-        const titleEl = document.getElementById('iframe-title');
-        
-        if (!container || !iframe) return;
-        
-        iframe.src = path;
-        titleEl.textContent = title;
-        container.classList.add('active');
-        
-        // Prevent body scrolling
-        document.body.style.overflow = 'hidden';
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    function resizeParticles() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
-
-    function closeApp(redirectToHub = false) {
-        const container = document.getElementById('iframe-app-container');
-        const iframe = document.getElementById('app-iframe');
-        
-        if (!container) return;
-        
-        container.classList.remove('active');
-        
-        // Clear src to stop audio/game
-        setTimeout(() => {
-            if (iframe) iframe.src = 'about:blank';
-            
-            if (redirectToHub) {
-                window.location.href = 'bennyshub/index.html';
-            }
-        }, 300);
-        
-        // Restore body scrolling
-        document.body.style.overflow = '';
-    }
-
-    // Listen for messages from iframe content
-    window.addEventListener('message', (event) => {
-      // Handle exit/back requests from games
-      if (event.data && event.data.action === 'focusBackButton') {
-        const container = document.getElementById('iframe-app-container');
-        if (container && container.classList.contains('active')) {
-          // User requested "Exit" from within the game.
-          // As per request, redirect to bennyshub instead of staying on index.
-          closeApp(true);
-        }
+    resizeParticles();
+    window.addEventListener('resize', resizeParticles);
+    const particles = [];
+    const particleCount = 80;
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 2.5 + 0.5;
+        this.speedX = Math.random() * 0.8 - 0.4;
+        this.speedY = Math.random() * 0.8 - 0.4;
+        this.opacity = Math.random() * 0.5 + 0.2;
       }
-    });
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+      }
+      draw() {
+        ctx.globalAlpha = this.opacity;
+        ctx.fillStyle = '#a78bfa';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    for(let i = 0; i < particleCount; i++) {
+      particles.push(new Particle());
+    }
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
   </script>
 </body>
 </html>
