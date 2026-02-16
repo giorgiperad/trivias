@@ -109,51 +109,24 @@ function speak(text) {
     if (window.NarbeVoiceManager) {
         window.NarbeVoiceManager.speak(text);
     } else {
-        // Google Cloud TTS integration for Georgian
-        const GOOGLE_TTS_API_KEY = 'AIzaSyAAstMqPq5wrkYk3vMTkMbgk0wsJwXtOxU';
-        const GOOGLE_TTS_ENDPOINT = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + GOOGLE_TTS_API_KEY;
-        const isGeorgian = true; // Always use Google TTS for now if API key is set
-        if (GOOGLE_TTS_API_KEY && isGeorgian) {
-            fetch(GOOGLE_TTS_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    input: { text: text },
-                    voice: { languageCode: 'ka-GE', name: 'ka-GE-Standard-A' },
-                    audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0 }
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.audioContent) {
-                    const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-                    audio.play();
-                } else {
-                    // fallback to browser TTS if error
-                    fallbackSpeak(text);
-                }
-            })
-            .catch(() => fallbackSpeak(text));
-        } else {
-            fallbackSpeak(text);
+        // Fallback if manager not available
+        if (!state.settings.tts) return;
+        window.speechSynthesis.cancel(); // Stop previous
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const voices = window.speechSynthesis.getVoices();
+        // Try to find Georgian voice
+        const georgianVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ka'));
+        if (georgianVoice) {
+            utterance.voice = georgianVoice;
+        } else if (voices.length > 0) {
+            utterance.voice = voices[state.settings.voiceIndex % voices.length];
         }
-    }
-}
 
-function fallbackSpeak(text) {
-    if (!state.settings.tts) return;
-    window.speechSynthesis.cancel(); // Stop previous
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const georgianVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ka'));
-    if (georgianVoice) {
-        utterance.voice = georgianVoice;
-    } else if (voices.length > 0) {
-        utterance.voice = voices[state.settings.voiceIndex % voices.length];
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
     }
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
 }
 
 // DOM Elements
