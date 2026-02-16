@@ -108,10 +108,7 @@
                     <span>ხმოვანი</span>
                     <span id="voice-status">Default</span>
                 </div>
-                <div class="setting-item scannable" data-action="open-editor-confirm">
-                    <span>Custom Game Editor</span>
-                    <i class="fas fa-external-link-alt"></i>
-                </div>
+                
                 <div class="setting-item scannable" data-action="clear-custom-games">
                     <span>ლოკალური თამაშების წაშლა</span>
                     <i class="fas fa-trash"></i>
@@ -122,51 +119,51 @@
 
         <!-- High Scores Screen -->
         <section id="highscores-screen" class="screen">
-            <h2>High Scores</h2>
+            <h2>საუკეთესო ქულები</h2>
             <ul id="highscore-list">
                 <!-- Scores injected by JS -->
             </ul>
-            <button class="scannable back-btn" data-action="back-to-menu">Back</button>
+            <button class="scannable back-btn" data-action="back-to-menu">უკან</button>
         </section>
 
         <!-- End Game Screen -->
         <section id="end-screen" class="screen">
-            <h2>Game Over!</h2>
-            <p>Final Score: <span id="final-score">0</span></p>
-            <p>High Score: <span id="new-highscore-msg"></span></p>
+            <h2>თამაში დასრულდა!</h2>
+            <p>საბოლოო ქულა: <span id="final-score">0</span></p>
+            <p>საუკეთესო ქულა: <span id="new-highscore-msg"></span></p>
             <div class="menu-options">
-                <button class="scannable menu-btn" data-action="play-again">Play Again</button>
-                <button class="scannable menu-btn" data-action="back-to-menu">Main Menu</button>
+                <button class="scannable menu-btn" data-action="play-again">თავიდან თამაში</button>
+                <button class="scannable menu-btn" data-action="back-to-menu">მთავარი გვერდი</button>
             </div>
         </section>
         
         <!-- Pause Overlay -->
         <div id="pause-overlay" class="hidden">
             <div class="pause-content">
-                <h2>PAUSED</h2>
-                <button class="scannable" data-action="resume">Continue Game</button>
-                <button class="scannable" data-action="settings">Settings</button>
-                <button class="scannable" data-action="quit">Return to Menu</button>
+                <h2>შეჩერებულია</h2>
+                <button class="scannable" data-action="resume">გაგრძელება</button>
+                <button class="scannable" data-action="settings">პარამეტრები</button>
+                <button class="scannable" data-action="quit">მთავარი გვერდი</button>
             </div>
         </div>
 
         <!-- Editor Warning Overlay -->
         <div id="editor-warning-overlay" class="hidden">
             <div class="pause-content">
-                <h2>Warning</h2>
-                <p style="text-align: center; font-size: 1.2rem; margin-bottom: 20px;">Opening the game editor will leave this site and will open the Game Editor. You will not be able to scan and select with spacebar and enter.</p>
-                <button class="scannable" data-action="cancel-editor">Cancel</button>
-                <button class="scannable" data-action="open-editor">Continue</button>
+                <h2>გაფრთხილება</h2>
+                <p style="text-align: center; font-size: 1.2rem; margin-bottom: 20px;">თამაშის რედაქტორის გახსნა დატოვებს ამ საიტს და გახსნის რედაქტორს. ვერ შეძლებთ სკანირებას და არჩევას spacebar-ით და enter-ით.</p>
+                <button class="scannable" data-action="cancel-editor">გაუქმება</button>
+                <button class="scannable" data-action="open-editor">გაგრძელება</button>
             </div>
         </div>
 
         <!-- Load Game Warning Overlay -->
         <div id="load-game-warning-overlay" class="hidden">
             <div class="pause-content">
-                <h2>Mouse Input Required</h2>
-                <p style="text-align: center; font-size: 1.2rem; margin-bottom: 20px;">Selecting a custom game file requires mouse input to navigate your computer's file system. The scanning system cannot control the file picker dialog.</p>
-                <button class="scannable" data-action="cancel-load-game">Cancel</button>
-                <button class="scannable" data-action="proceed-load-game">Proceed</button>
+                <h2>საჭიროა მაუსის გამოყენება</h2>
+                <p style="text-align: center; font-size: 1.2rem; margin-bottom: 20px;">კასტომ თამაშის ფაილის არჩევა საჭიროებს მაუსის გამოყენებას კომპიუტერის ფაილური სისტემის სანავიგაციოდ. სკანირების სისტემა ვერ მართავს ფაილ პიკერის დიალოგს.</p>
+                <button class="scannable" data-action="cancel-load-game">გაუქმება</button>
+                <button class="scannable" data-action="proceed-load-game">გაგრძელება</button>
             </div>
         </div>
 
