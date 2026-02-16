@@ -3,61 +3,93 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NARBE House — Accessible Apps and Tools</title>
-  <meta name="description" content="NARBE House web apps and tools. Access Benny's Accessibility Hub Beta and the Phrase Board Editor." />
+  <title>TriviaMaster</title>
+  <meta name="description" content="Play TriviaMaster - the ultimate trivia game!" />
   <meta name="color-scheme" content="dark light" />
   <style>
-    :root{
-      --bg:#1e3a5f;
-      --card:#0a1628;
-      --panel:#0f1d34;
-      --text:#ffffff;
-      --muted:#94a9c9;
-      --narbe-orange:#ff5c00;
-      --narbe-blue:#5bb0ff;
-      --accent-glow: rgba(91, 176, 255, 0.15);
-      --orange-glow: rgba(255, 92, 0, 0.2);
-      --radius:20px;
+    :root {
+      --bg: #181c2b;
+      --primary: #3a7afe;
+      --secondary: #f7b32b;
+      --card: #232849;
+      --text: #fff;
+      --muted: #b0b8d1;
+      --radius: 18px;
+      --shadow: 0 4px 32px 0 rgba(58,122,254,0.10);
     }
-    
-    * { 
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    html, body { height: 100%; }
-    
-    body{
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    body {
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
-      overflow-x: hidden;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
-    
-    @keyframes float {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-20px) rotate(5deg); }
+    .main-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 2.5rem 2rem 2rem 2rem;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      margin-top: 5vh;
     }
-    
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    h1 {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      letter-spacing: 1px;
     }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    p {
+      color: var(--muted);
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
     }
-    
-    .container{
+    .play-btn {
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 1rem 2.5rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 12px 0 rgba(58,122,254,0.15);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .play-btn:hover {
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 6px 24px 0 rgba(58,122,254,0.18);
+    }
+    .footer {
+      margin-top: 2.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    @media (max-width: 500px) {
+      .main-card { padding: 1.5rem 0.5rem; }
+      h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-card">
+    <h1>TriviaMaster</h1>
+    <p>Test your knowledge across a variety of topics!<br>Ready to challenge yourself or friends?</p>
+    <a href="/bennyshub/apps/games/TRIVIAMASTER/index.html">
+      <button class="play-btn">Play Now</button>
+    </a>
+  </div>
+  <div class="footer">
+    &copy; 2026 TriviaMaster &mdash; Powered by NARBE House
+  </div>
+</body>
+</html>
       max-width: 1100px;
       margin: 0 auto;
       padding: 0 24px;
