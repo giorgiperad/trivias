@@ -35,12 +35,12 @@
                     }
                 },
                 {
-                    "question": "What is the capital of Mexico?",
+                    "question": "მექსიკის დედაქალაქი რომელია?",
                     "choices": [
-                        "Mexico City",
-                        "Guadalajara",
-                        "Monterrey",
-                        "Cancun"
+                        "მეხიკო",
+                        "გუადალახარა",
+                        "მონტერეი",
+                        "კანკუნი"
                     ],
                     "correct": 0,
                     "media": {
@@ -49,12 +49,12 @@
                     }
                 },
                 {
-                    "question": "Which ocean borders the west coast of the United States?",
+                    "question": "რომელი ოკეანე ესაზღვრება აშშ-ს დასავლეთ სანაპიროს?",
                     "choices": [
-                        "Pacific Ocean",
-                        "Atlantic Ocean",
-                        "Indian Ocean",
-                        "Arctic Ocean"
+                        "წყნარი ოკეანე",
+                        "ატლანტის ოკეანე",
+                        "ინდოეთის ოკეანე",
+                        "არქტიკის ოკეანე"
                     ],
                     "correct": 0,
                     "media": {
@@ -63,12 +63,12 @@
                     }
                 },
                 {
-                    "question": "Which ocean borders the east coast of the United States?",
+                    "question": "რომელი ოკეანე ესაზღვრება აშშ-ს აღმოსავლეთ სანაპიროს?",
                     "choices": [
-                        "Atlantic Ocean",
-                        "Pacific Ocean",
-                        "Indian Ocean",
-                        "Southern Ocean"
+                        "ატლანტის ოკეანე",
+                        "წყნარი ოკეანე",
+                        "ინდოეთის ოკეანე",
+                        "სამხრეთის ოკეანე"
                     ],
                     "correct": 0,
                     "media": {
@@ -77,12 +77,12 @@
                     }
                 },
                 {
-                    "question": "Which country is directly north of the United States?",
+                    "question": "რომელი ქვეყანაა აშშ-ს პირდაპირ ჩრდილოეთით?",
                     "choices": [
-                        "Canada",
-                        "Mexico",
-                        "Cuba",
-                        "Guatemala"
+                        "კანადა",
+                        "მექსიკა",
+                        "კუბა",
+                        "გვატემალა"
                     ],
                     "correct": 0,
                     "media": {
@@ -91,12 +91,12 @@
                     }
                 },
                 {
-                    "question": "Which country is directly south of the United States?",
+                    "question": "რომელი ქვეყანაა აშშ-ს პირდაპირ სამხრეთით?",
                     "choices": [
-                        "Mexico",
-                        "Canada",
-                        "Brazil",
-                        "Spain"
+                        "მექსიკა",
+                        "კანადა",
+                        "ბრაზილია",
+                        "ესპანეთი"
                     ],
                     "correct": 0,
                     "media": {
@@ -105,12 +105,12 @@
                     }
                 },
                 {
-                    "question": "Which US state is the largest by area?",
+                    "question": "რომელი შტატია აშშ-ში ყველაზე დიდი ფართობით?",
                     "choices": [
-                        "Alaska",
-                        "Texas",
-                        "California",
-                        "Montana"
+                        "ალასკა",
+                        "ტეხასი",
+                        "კალიფორნია",
+                        "მონტანა"
                     ],
                     "correct": 0,
                     "media": {
@@ -119,12 +119,12 @@
                     }
                 },
                 {
-                    "question": "Which US state has the most people?",
+                    "question": "რომელი შტატს ჰყავს ყველაზე მეტი მოსახლეობა აშშ-ში?",
                     "choices": [
-                        "California",
-                        "Texas",
-                        "Florida",
-                        "New York"
+                        "კალიფორნია",
+                        "ტეხასი",
+                        "ფლორიდა",
+                        "ნიუ-იორკი"
                     ],
                     "correct": 0,
                     "media": {
@@ -133,12 +133,12 @@
                     }
                 },
                 {
-                    "question": "Which Great Lake is the largest by surface area?",
+                    "question": "რომელი დიდი ტბაა ყველაზე დიდი ზედაპირის ფართობით?",
                     "choices": [
-                        "Lake Superior",
-                        "Lake Michigan",
-                        "Lake Huron",
-                        "Lake Erie"
+                        "ზედა ტბა",
+                        "მიჩიგანის ტბა",
+                        "ჰურონის ტბა",
+                        "ერის ტბა"
                     ],
                     "correct": 0,
                     "media": {
