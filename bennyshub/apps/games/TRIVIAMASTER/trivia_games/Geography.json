@@ -1,32 +1,32 @@
 {
     "meta": {
-        "title": "Geography",
-        "image": "data:image/jpeg;base64,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"
+        "title": "გეოგრაფია",
+        "image": ""
     },
     "categories": {
         "North America": {
             "questions": [
                 {
-                    "question": "What is the capital of the United States?",
+                    "question": "ამოიცანი იაპონური სანთელი",
                     "choices": [
-                        "Washington, D.C.",
-                        "New York City",
-                        "Philadelphia",
-                        "Boston"
+                        "Gravestone Doji",
+                        "Long-legged Doji",
+                        "Dragonfly Doji",
+                        "Dragonfly Doji"
                     ],
                     "correct": 0,
                     "media": {
                         "type": "image",
-                        "src": ""
+                        "src": "https://www.investopedia.com/thmb/p6yBiuIcsmocFBwJ-o40uwHx6MY=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/DojiDefinition-efc3ba7213db4200a0a69f354369960b.png"
                     }
                 },
                 {
-                    "question": "What is the capital of Canada?",
+                    "question": "ამოიცანი იაპონური სანთელი, ამოიცანი იაპონური სანთელი",
                     "choices": [
-                        "Ottawa",
-                        "Toronto",
-                        "Vancouver",
-                        "Montreal"
+                        "ამოიცანი ",
+                        "ამოიც",
+                        "ამოიცანი ი",
+                        "ამო"
                     ],
                     "correct": 0,
                     "media": {
